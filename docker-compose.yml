@@ -1,0 +1,71 @@
+version: '2'
+
+# ---------------------------------------------------------------------------- #
+
+services:
+
+  # -------------------------------------------------------------------------- #
+
+  go:
+    image: jancajthaml/go
+    volumes:
+      - ./dev/lifecycle:/opt/lifecycle
+      - .:/go/src/github.com/jancajthaml-openbank/actor-system
+    working_dir: /go/src/github.com/jancajthaml-openbank/actor-system
+    environment:
+      - GOOS
+      - GOARCH
+      - GOPATH=/go
+      - COMPOSE_PROJECT_NAME
+    entrypoint: ["go"]
+    privileged: true
+
+  # -------------------------------------------------------------------------- #
+
+  sync:
+    extends: go
+    entrypoint: ["dep"]
+    command: ["ensure"]
+
+  # -------------------------------------------------------------------------- #
+
+  init:
+    extends: go
+    entrypoint: ["dep"]
+    command: ["init"]
+
+  # -------------------------------------------------------------------------- #
+
+  update:
+    extends: go
+    entrypoint: ["dep"]
+    command: ["ensure", "-update"]
+
+  # -------------------------------------------------------------------------- #
+
+  fetch:
+    extends: go
+    entrypoint: ["dep"]
+    command: ["ensure", "-add", "github.com/gin-gonic/gin"]
+
+  # -------------------------------------------------------------------------- #
+
+  lint:
+    extends: go
+    entrypoint: ["/opt/lifecycle/lint"]
+
+  # -------------------------------------------------------------------------- #
+
+  sec:
+    extends: go
+    entrypoint: ["/opt/lifecycle/sec"]
+
+  # -------------------------------------------------------------------------- #
+
+  test:
+    extends: go
+    environment:
+      - GOMAXPROCS=1
+    command: ["test", "-v", "./...", "-benchmem", "-bench=.", "-timeout=60s", "-test.benchtime=5s"]
+
+# ---------------------------------------------------------------------------- #

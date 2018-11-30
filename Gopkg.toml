@@ -1,0 +1,20 @@
+required = [
+  "github.com/pebbe/zmq4"
+]
+
+[[constraint]]
+  name = "github.com/pebbe/zmq4"
+  version = "1.0.0"
+
+[[constraint]]
+  name = "github.com/sirupsen/logrus"
+  version = "1.0.6"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/jancajthaml-openbank/lake-client"
+
+[prune]
+  non-go = true
+  go-tests = true
+  unused-packages = true
