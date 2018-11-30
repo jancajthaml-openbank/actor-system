@@ -49,10 +49,6 @@ type Coordinates struct {
 	Region string
 }
 
-// State represents actor current state
-type State struct {
-}
-
 // Context represents actor message envelope
 type Context struct {
 	Data     interface{}
@@ -60,21 +56,20 @@ type Context struct {
 	Sender   Coordinates
 }
 
-type ActorRecieveFn func(State, Context)
-
 // Envelope represents single actor
 type Envelope struct {
 	Name    string
-	State   State
-	receive ActorRecieveFn
+	State   interface{}
+	receive func(interface{}, Context)
 	Backlog chan Context
 	Exit    chan interface{}
 }
 
 // NewEnvelope returns new actor instance
-func NewEnvelope(name string) *Envelope {
+func NewEnvelope(name string, state interface{}) *Envelope {
 	return &Envelope{
 		Name:    name,
+		State:   state,
 		Backlog: make(chan Context, 64),
 		Exit:    make(chan interface{}),
 	}
@@ -86,7 +81,6 @@ func (ref *Envelope) Tell(data interface{}, sender Coordinates) (err error) {
 		err = fmt.Errorf("actor reference %v not found", ref)
 		return
 	}
-
 	ref.Backlog <- Context{
 		Data:     data,
 		Receiver: ref,
@@ -96,10 +90,11 @@ func (ref *Envelope) Tell(data interface{}, sender Coordinates) (err error) {
 }
 
 // Become transforms actor behaviour for next message
-func (ref *Envelope) Become(f ActorRecieveFn) {
+func (ref *Envelope) Become(state interface{}, f func(interface{}, Context)) {
 	if ref == nil {
 		return
 	}
+	ref.State = state
 	ref.React(f)
 	return
 }
@@ -112,7 +107,7 @@ func (ref *Envelope) String() string {
 }
 
 // React change become function
-func (ref *Envelope) React(f ActorRecieveFn) {
+func (ref *Envelope) React(f func(interface{}, Context)) {
 	if ref == nil {
 		return
 	}
