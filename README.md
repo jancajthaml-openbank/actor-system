@@ -15,31 +15,31 @@ No nonsense, easiblity extensible actor system support without need or service d
 
 ```
 import (
-	"context"
+  "context"
   "fmt"
 
-	system "github.com/jancajthaml-openbank/actor-system"
+  system "github.com/jancajthaml-openbank/actor-system"
 )
 
 type ActorSystem struct {
-	system.ActorSystemSupport
+  system.ActorSystemSupport
 }
 
 func NewActorSystem() ActorSystem {
   ctx := context.Background()
   name := "ActorSystem"
 
-	return ActorSystem{
-		ActorSystemSupport: system.NewActorSystemSupport(ctx, name, "localhost"),
-	}
+  return ActorSystem{
+    ActorSystemSupport: system.NewActorSystemSupport(ctx, name, "localhost"),
+  }
 }
 
 func (system ActorSystem) ProcessLocalMessage(msg interface{}, receiver string, sender system.Coordinates) {
-	fmt.Printf("Inherited Actor System recieved local message %+v\n", msg)
+  fmt.Printf("Inherited Actor System recieved local message %+v\n", msg)
 }
 
 func (system ActorSystem) processRemoteMessage(parts []string) {
-	fmt.Printf("Inherited Actor System recieved remote message %+v\n", parts)
+  fmt.Printf("Inherited Actor System recieved remote message %+v\n", parts)
 }
 ```
 
