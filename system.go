@@ -22,15 +22,20 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type ProcessLocalMessage func(msg interface{}, receiver string, sender Coordinates)
+type ProcessRemoteMessage func(parts []string)
+
 // ActorSystemSupport represents actor system capabilities
 type ActorSystemSupport struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
-	exitSignal chan struct{}
-	IsReady    chan interface{}
-	Actors     *ActorsMap
-	lakeClient *lake.Client
-	Name       string
+	Name            string
+	IsReady         chan interface{}
+	ctx             context.Context
+	cancel          context.CancelFunc
+	exitSignal      chan struct{}
+	actors          *ActorsMap
+	lakeClient      *lake.Client
+	onLocalMessage  ProcessLocalMessage
+	onRemoteMessage ProcessRemoteMessage
 }
 
 // NewActorSystemSupport constructor
@@ -46,7 +51,7 @@ func NewActorSystemSupport(parentCtx context.Context, systemName string, lakeHos
 		cancel:     cancel,
 		exitSignal: make(chan struct{}),
 		IsReady:    make(chan interface{}),
-		Actors: &ActorsMap{
+		actors: &ActorsMap{
 			underlying: make(map[string]*Envelope),
 		},
 		lakeClient: lakeClient,
@@ -54,33 +59,28 @@ func NewActorSystemSupport(parentCtx context.Context, systemName string, lakeHos
 	}
 }
 
+func (s *ActorSystemSupport) RegisterOnLocalMessage(cb ProcessLocalMessage) {
+	s.onLocalMessage = cb
+}
+
+func (s *ActorSystemSupport) RegisterOnRemoteMessage(cb ProcessRemoteMessage) {
+	s.onRemoteMessage = cb
+}
+
 // RegisterActor register new actor into actor system
-func (s ActorSystemSupport) RegisterActor(ref *Envelope, initialState ActorRecieveFn) (err error) {
+func (s *ActorSystemSupport) RegisterActor(ref *Envelope, initialReaction func(interface{}, Context)) (err error) {
 	if ref == nil {
 		return
 	}
-	_, exists := s.Actors.Load(ref.Name)
+	_, exists := s.actors.Load(ref.Name)
 	if exists {
 		return
 	}
 
-	ref.React(initialState)
-	s.Actors.Store(ref.Name, ref)
+	ref.React(initialReaction)
+	s.actors.Store(ref.Name, ref)
 
 	go func() {
-		defer func() {
-			if e := recover(); e != nil {
-				switch x := e.(type) {
-				case string:
-					err = fmt.Errorf(x)
-				case error:
-					err = x
-				default:
-					err = fmt.Errorf("Unknown panic")
-				}
-			}
-		}()
-
 		for {
 			select {
 			case <-s.Done():
@@ -97,8 +97,8 @@ func (s ActorSystemSupport) RegisterActor(ref *Envelope, initialState ActorRecie
 }
 
 // ActorOf return actor reference by name
-func (s ActorSystemSupport) ActorOf(name string) (*Envelope, error) {
-	ref, exists := s.Actors.Load(name)
+func (s *ActorSystemSupport) ActorOf(name string) (*Envelope, error) {
+	ref, exists := s.actors.Load(name)
 	if !exists {
 		return nil, fmt.Errorf("actor %v not registered", name)
 	}
@@ -107,46 +107,26 @@ func (s ActorSystemSupport) ActorOf(name string) (*Envelope, error) {
 }
 
 // UnregisterActor stops actor and removes it from actor system
-func (s ActorSystemSupport) UnregisterActor(name string) {
+func (s *ActorSystemSupport) UnregisterActor(name string) {
 	ref, err := s.ActorOf(name)
 	if err != nil {
 		return
 	}
 
-	s.Actors.Delete(name)
+	s.actors.Delete(name)
 	ref.Exit <- nil
 	close(ref.Backlog)
 	close(ref.Exit)
 }
 
 // SendRemote send message to remote region
-func (s ActorSystemSupport) SendRemote(destinationSystem, data string) {
+func (s *ActorSystemSupport) SendRemote(destinationSystem, data string) {
 	s.lakeClient.Publish <- []string{destinationSystem, data}
 }
 
-// ProcessLocalMessage send local message to actor by name
-func (s ActorSystemSupport) ProcessLocalMessage(msg interface{}, receiver string, sender Coordinates) {
-	log.Debugf("Actor System %+v recieved local message %+v", s.Name, msg)
-}
-
-func (s ActorSystemSupport) ProcessRemoteMessage(parts []string) {
-	log.Debugf("Actor System %s recieved remote message %+v", s.Name, parts)
-	if len(parts) != 4 {
-		log.Warnf("Invalid message received [%+v remote]", parts)
-		return
-	}
-
-	region, receiver, sender, payload := parts[0], parts[1], parts[2], parts[3]
-
-	s.ProcessLocalMessage(payload, receiver, Coordinates{
-		Name:   sender,
-		Region: region,
-	})
-}
-
 // Stop actor system and flush all actors
-func (s ActorSystemSupport) Stop() {
-	for actorName := range s.Actors.underlying {
+func (s *ActorSystemSupport) Stop() {
+	for actorName := range s.actors.underlying {
 		s.UnregisterActor(actorName)
 	}
 
@@ -155,33 +135,45 @@ func (s ActorSystemSupport) Stop() {
 }
 
 // MarkDone signals actor system is finished
-func (s ActorSystemSupport) MarkDone() {
+func (s *ActorSystemSupport) MarkDone() {
 	close(s.exitSignal)
 }
 
 // Done cancel channel
-func (s ActorSystemSupport) Done() <-chan struct{} {
+func (s *ActorSystemSupport) Done() <-chan struct{} {
 	return s.ctx.Done()
 }
 
-// MarkReady signals daemon is ready
-func (s ActorSystemSupport) MarkReady() {
+// EnsureContract check if contract of embedding is ok and marks ready
+func (s *ActorSystemSupport) EnsureContract() {
+	if s.onRemoteMessage == nil {
+		s.onLocalMessage = func(msg interface{}, receiver string, sender Coordinates) {
+			log.Warnf("[Call RegisterOnLocalMessage] Actor System %+v recieved local message %+v", s.Name, msg)
+		}
+	}
+
+	if s.onRemoteMessage == nil {
+		s.onRemoteMessage = func(parts []string) {
+			log.Warnf("[Call RegisterOnRemoteMessage] Actor System %s recieved remote message %+v", s.Name, parts)
+		}
+	}
+
 	s.IsReady <- nil
 }
 
 // Start handles everything needed to start metrics daemon
-func (s ActorSystemSupport) Start() {
+func (s *ActorSystemSupport) Start() {
 	defer s.MarkDone()
 
 	log.Info("Starting Actor System")
 	s.lakeClient.Start()
-	s.MarkReady()
+	s.EnsureContract()
 	log.Info("Start Actor System")
 
 	for {
 		select {
 		case message := <-s.lakeClient.Receive:
-			s.ProcessRemoteMessage(message)
+			s.onRemoteMessage(message)
 		case <-s.Done():
 			log.Info("Stopping Actor System")
 			s.lakeClient.Stop()
