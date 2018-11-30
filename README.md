@@ -2,6 +2,49 @@
 
 No nonsense, easiblity extensible actor system support without need or service discovery and actor tracking.
 
+### Features
+
+- Multiple actor systems in single service
+- No zipkin, no kafka, no heavy weight framework 
+- State aware actors with actor enveloping
+- csp on actor level, parallel on application level
+- stash and blacklog support on actor instance
+- Spray actor or do something else on remote message JIT with `ProcessLocalMessage` and `ProcessRemoteMessage`
+
+### Simplest Example
+
+```
+import (
+	"context"
+  "fmt"
+
+	system "github.com/jancajthaml-openbank/actor-system"
+)
+
+type ActorSystem struct {
+	system.ActorSystemSupport
+}
+
+func NewActorSystem() ActorSystem {
+  ctx := context.Background()
+  name := "ActorSystem"
+
+	return ActorSystem{
+		ActorSystemSupport: system.NewActorSystemSupport(ctx, name, "localhost"),
+	}
+}
+
+func (system ActorSystem) ProcessLocalMessage(msg interface{}, receiver string, sender system.Coordinates) {
+	fmt.Printf("Inherited Actor System recieved local message %+v\n", msg)
+}
+
+func (system ActorSystem) processRemoteMessage(parts []string) {
+	fmt.Printf("Inherited Actor System recieved remote message %+v\n", parts)
+}
+```
+
+---
+
 ### Local Messages support
 
 When message is recieved from local environment exposes `ProcessLocalMessage` function
