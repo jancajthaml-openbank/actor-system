@@ -35,7 +35,7 @@ type Support struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
 	exitSignal      chan struct{}
-	actors          *ActorsMap
+	actors          *actorsMap
 	lakeClient      *lake.Client
 	onLocalMessage  ProcessLocalMessage
 	onRemoteMessage ProcessRemoteMessage
@@ -54,7 +54,7 @@ func NewSupport(parentCtx context.Context, systemName string, lakeHostname strin
 		cancel:     cancel,
 		exitSignal: make(chan struct{}),
 		IsReady:    make(chan interface{}),
-		actors: &ActorsMap{
+		actors: &actorsMap{
 			underlying: make(map[string]*Envelope),
 		},
 		lakeClient: lakeClient,

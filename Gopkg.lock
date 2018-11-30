@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/jancajthaml-openbank/lake-client"
   packages = ["go"]
-  revision = "2898a6572215a5a912dc975b26588d31bb0aa695"
+  revision = "e2d4da331f215ef86f454e362846f90dc98922c3"
 
 [[projects]]
   name = "github.com/konsorten/go-windows-terminal-sequences"
