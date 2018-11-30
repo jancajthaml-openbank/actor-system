@@ -27,6 +27,7 @@ type ActorSystemSupport struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	exitSignal chan struct{}
+	IsReady    chan interface{}
 	Actors     *ActorsMap
 	lakeClient *lake.Client
 	Name       string
@@ -44,6 +45,7 @@ func NewActorSystemSupport(parentCtx context.Context, systemName string, lakeHos
 		ctx:        ctx,
 		cancel:     cancel,
 		exitSignal: make(chan struct{}),
+		IsReady:    make(chan interface{}),
 		Actors: &ActorsMap{
 			underlying: make(map[string]*Envelope),
 		},
@@ -120,6 +122,11 @@ func (s ActorSystemSupport) UnregisterActor(name string) {
 	}
 }
 
+// SendRemote send message to remote region
+func (s ActorSystemSupport) SendRemote(destinationSystem, data string) {
+	s.Client.Publish <- []string{destinationSystem, data}
+}
+
 // ProcessLocalMessage send local message to actor by name
 func (s ActorSystemSupport) ProcessLocalMessage(msg interface{}, receiver string, sender Coordinates) {
 	log.Debugf("Actor System %+v recieved local message %+v", s.Name, msg)
@@ -127,6 +134,17 @@ func (s ActorSystemSupport) ProcessLocalMessage(msg interface{}, receiver string
 
 func (s ActorSystemSupport) ProcessRemoteMessage(parts []string) {
 	log.Debugf("Actor System %s recieved remote message %+v", s.Name, parts)
+	if len(parts) != 4 {
+		log.Warnf("Invalid message received [%+v remote]", parts)
+		return
+	}
+
+	region, receiver, sender, payload := parts[0], parts[1], parts[2], parts[3]
+
+	s.ProcessLocalMessage(payload, receiver, Coordinates{
+		Name:   sender,
+		Region: region,
+	})
 }
 
 // Stop actor system and flush all actors
@@ -143,6 +161,9 @@ func (s ActorSystemSupport) Start() {
 	defer close(s.exitSignal)
 	log.Info("Start Actor System")
 	s.lakeClient.Start()
+	s.IsReady <- nil
+	<-s.IsReady
+
 	for {
 		select {
 		case message := <-s.lakeClient.Receive:
