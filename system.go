@@ -129,6 +129,11 @@ func (s *Support) SendRemote(destinationSystem, data string) {
 	s.lakeClient.Publish <- []string{destinationSystem, data}
 }
 
+// BroadcastRemote send message to all remote regions
+func (s *Support) BroadcastRemote(data string) {
+	s.lakeClient.Broadcast(data)
+}
+
 // Stop actor system and flush all actors
 func (s *Support) Stop() {
 	for actorName := range s.actors.underlying {
