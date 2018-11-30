@@ -3,47 +3,27 @@
 set -Eeuo pipefail
 trap exit INT TERM
 
-sem_open() {
-  mkfifo pipe-$$
-  exec 3<>pipe-$$
-  rm pipe-$$
-  local parallelism=${1}
-  while [ $parallelism -gt 0 ] ; do
-    parallelism=$((parallelism-1))
-    printf %s 000 >&3
-  done
-}
-
-sem_put() {
-  local x
-  read -u 3 -n 3 x && [ $x -eq 0 ] || exit $x
-  (
-    "$@"
-    printf '%.3d' $? >&3
-  )&
-}
-
 scan() {
-  if [ -d ${1} ] ; then
-    sem_put gofmt -s -w ${1}
-    sem_put golint ${1}/...
-    sem_put misspell ${1}
-    sem_put go vet ${1}/...
-    sem_put prealloc ${1}/...
-    sem_put gocyclo -over 15 ${1}
-    sem_put prealloc ${1}/...
-    sem_put maligned ${1}/...
-    sem_put goconst ${1}/...
+  if [ -f ${1} ] ; then
+    echo ">> gofmt ${1}"
+    gofmt -s -w ${1}
+    echo ">> golint ${1}"
+    /go/bin/golint ${1}
+    echo ">> misspell ${1}"
+    /go/bin/misspell ${1}
+    echo ">> prealloc ${1}"
+    /go/bin/prealloc ${1}
+    echo ">> gocyclo -over 15 ${1}"
+    /go/bin/gocyclo -over 15 ${1}
+    echo ">> prealloc ${1}"
+    /go/bin/prealloc ${1}
+    echo ">> goconst ${1}"
+    /go/bin/goconst ${1}
   fi
 }
 
-sem_open $(getconf _NPROCESSORS_ONLN)
-
-find . -name "*.go" -not -path "*vendor*" -exec dirname {} \; \
+find . -name "*.go" -not -path "*vendor/*" \
 | sort -u \
-| while read package ; do
-  echo "processing $(realpath ${package})"
-  #scan "${package}"
+| while read f ; do
+  scan ${f}
 done
-
-wait

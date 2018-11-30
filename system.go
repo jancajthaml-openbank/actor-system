@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package actor_system
+package actorsystem
 
 import (
 	"context"
@@ -22,11 +22,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// ProcessLocalMessage is a function signature definition for local message processing
 type ProcessLocalMessage func(msg interface{}, receiver string, sender Coordinates)
+
+// ProcessRemoteMessage is a function signature definition for remote message processing
 type ProcessRemoteMessage func(parts []string)
 
-// ActorSystemSupport represents actor system capabilities
-type ActorSystemSupport struct {
+// Support represents actor system capabilities
+type Support struct {
 	Name            string
 	IsReady         chan interface{}
 	ctx             context.Context
@@ -38,15 +41,15 @@ type ActorSystemSupport struct {
 	onRemoteMessage ProcessRemoteMessage
 }
 
-// NewActorSystemSupport constructor
-func NewActorSystemSupport(parentCtx context.Context, systemName string, lakeHostname string) ActorSystemSupport {
+// NewSupport constructor
+func NewSupport(parentCtx context.Context, systemName string, lakeHostname string) Support {
 	ctx, cancel := context.WithCancel(parentCtx)
 	lakeClient, err := lake.NewClient(ctx, systemName, lakeHostname)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	return ActorSystemSupport{
+	return Support{
 		ctx:        ctx,
 		cancel:     cancel,
 		exitSignal: make(chan struct{}),
@@ -59,16 +62,18 @@ func NewActorSystemSupport(parentCtx context.Context, systemName string, lakeHos
 	}
 }
 
-func (s *ActorSystemSupport) RegisterOnLocalMessage(cb ProcessLocalMessage) {
+// RegisterOnLocalMessage register callback on local message receive
+func (s *Support) RegisterOnLocalMessage(cb ProcessLocalMessage) {
 	s.onLocalMessage = cb
 }
 
-func (s *ActorSystemSupport) RegisterOnRemoteMessage(cb ProcessRemoteMessage) {
+// RegisterOnRemoteMessage register callback on remote message receive
+func (s *Support) RegisterOnRemoteMessage(cb ProcessRemoteMessage) {
 	s.onRemoteMessage = cb
 }
 
 // RegisterActor register new actor into actor system
-func (s *ActorSystemSupport) RegisterActor(ref *Envelope, initialReaction func(interface{}, Context)) (err error) {
+func (s *Support) RegisterActor(ref *Envelope, initialReaction func(interface{}, Context)) (err error) {
 	if ref == nil {
 		return
 	}
@@ -97,7 +102,7 @@ func (s *ActorSystemSupport) RegisterActor(ref *Envelope, initialReaction func(i
 }
 
 // ActorOf return actor reference by name
-func (s *ActorSystemSupport) ActorOf(name string) (*Envelope, error) {
+func (s *Support) ActorOf(name string) (*Envelope, error) {
 	ref, exists := s.actors.Load(name)
 	if !exists {
 		return nil, fmt.Errorf("actor %v not registered", name)
@@ -107,7 +112,7 @@ func (s *ActorSystemSupport) ActorOf(name string) (*Envelope, error) {
 }
 
 // UnregisterActor stops actor and removes it from actor system
-func (s *ActorSystemSupport) UnregisterActor(name string) {
+func (s *Support) UnregisterActor(name string) {
 	ref, err := s.ActorOf(name)
 	if err != nil {
 		return
@@ -120,12 +125,12 @@ func (s *ActorSystemSupport) UnregisterActor(name string) {
 }
 
 // SendRemote send message to remote region
-func (s *ActorSystemSupport) SendRemote(destinationSystem, data string) {
+func (s *Support) SendRemote(destinationSystem, data string) {
 	s.lakeClient.Publish <- []string{destinationSystem, data}
 }
 
 // Stop actor system and flush all actors
-func (s *ActorSystemSupport) Stop() {
+func (s *Support) Stop() {
 	for actorName := range s.actors.underlying {
 		s.UnregisterActor(actorName)
 	}
@@ -135,26 +140,26 @@ func (s *ActorSystemSupport) Stop() {
 }
 
 // MarkDone signals actor system is finished
-func (s *ActorSystemSupport) MarkDone() {
+func (s *Support) MarkDone() {
 	close(s.exitSignal)
 }
 
 // Done cancel channel
-func (s *ActorSystemSupport) Done() <-chan struct{} {
+func (s *Support) Done() <-chan struct{} {
 	return s.ctx.Done()
 }
 
 // EnsureContract check if contract of embedding is ok and marks ready
-func (s *ActorSystemSupport) EnsureContract() {
+func (s *Support) EnsureContract() {
 	if s.onRemoteMessage == nil {
 		s.onLocalMessage = func(msg interface{}, receiver string, sender Coordinates) {
-			log.Warnf("[Call RegisterOnLocalMessage] Actor System %+v recieved local message %+v", s.Name, msg)
+			log.Warnf("[Call RegisterOnLocalMessage] Actor System %+v received local message %+v", s.Name, msg)
 		}
 	}
 
 	if s.onRemoteMessage == nil {
 		s.onRemoteMessage = func(parts []string) {
-			log.Warnf("[Call RegisterOnRemoteMessage] Actor System %s recieved remote message %+v", s.Name, parts)
+			log.Warnf("[Call RegisterOnRemoteMessage] Actor System %s received remote message %+v", s.Name, parts)
 		}
 	}
 
@@ -162,7 +167,7 @@ func (s *ActorSystemSupport) EnsureContract() {
 }
 
 // Start handles everything needed to start metrics daemon
-func (s *ActorSystemSupport) Start() {
+func (s *Support) Start() {
 	defer s.MarkDone()
 
 	log.Info("Starting Actor System")
