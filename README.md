@@ -9,7 +9,7 @@ No nonsense, easiblity extensible actor system support without need or service d
 - State aware actors with actor enveloping
 - csp on actor level, parallel on application level
 - stash and blacklog support on actor instance
-- Spray actor or do something else on remote message JIT with `ProcessLocalMessage` and `ProcessRemoteMessage`
+- Spray actor or do something else on message receive JIT with `ProcessLocalMessage` and `ProcessRemoteMessage`
 
 ### Simplest Example
 
