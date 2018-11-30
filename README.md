@@ -5,7 +5,7 @@ No nonsense, easiblity extensible actor system support without need or service d
 ### Features
 
 - Multiple actor systems in single service
-- No zipkin, no kafka, no heavy weight framework 
+- No zipkin, no kafka, no heavy weight framework
 - State aware actors with actor enveloping
 - csp on actor level, parallel on application level
 - stash and blacklog support on actor instance
@@ -34,12 +34,21 @@ func NewActorSystem() ActorSystem {
   }
 }
 
-func (system ActorSystem) ProcessLocalMessage(msg interface{}, receiver string, sender system.Coordinates) {
+func (s ActorSystem) ProcessLocalMessage(msg interface{}, receiver string, sender s.Coordinates) {
   fmt.Printf("Inherited Actor System recieved local message %+v\n", msg)
 }
 
-func (system ActorSystem) ProcessRemoteMessage(parts []string) {
+func (s ActorSystem) ProcessRemoteMessage(parts []string) {
   fmt.Printf("Inherited Actor System recieved remote message %+v\n", parts)
+}
+
+func main() {
+  as := NewActorSystem()
+
+  as.ActorSystemSupport.RegisterOnLocalMessage(as.ProcessLocalMessage)
+  as.ActorSystemSupport.RegisterOnRemoteMessage(as.ProcessRemoteMessage)
+
+  as.Start()
 }
 ```
 
@@ -47,8 +56,8 @@ func (system ActorSystem) ProcessRemoteMessage(parts []string) {
 
 ### Local Messages support
 
-When message is recieved from local environment exposes `ProcessLocalMessage` function
-which simplest implementation would be
+When message is recieved from local environment function registered by `RegisterOnLocalMessage` is called.
+The simplest implementation of such function would be
 
 ```
 func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to string, from Coordinates) {
@@ -75,6 +84,16 @@ func EchoActor(system ActorSystemSupport) func(State, Context) {
 ```
 
 ```
+
+actorSystem := ActorSystem{
+  ActorSystemSupport: system.NewActorSystemSupport(ctx, "Vault/"+cfg.Tenant, cfg.LakeHostname),
+  storage:            cfg.RootStorage,
+  tenant:             cfg.Tenant,
+  metrics:            metrics,
+}
+
+return actorSystem
+
 func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to string, from Coordinates) {
   ref, err := system.ActorOf(to)
   if err != nil {
@@ -95,8 +114,8 @@ func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to string,
 
 Uses [lake](https://github.com/jancajthaml-openbank/lake) relay for remote messages relay.
 
-When message is recieved from remote environment exposes `ProcessRemoteMessage` function
-which simplest implementation would be
+When message is recieved from remote environment function registered by `RegisterOnRemoteMessage` is called.
+The simplest implementation of such function would be
 
 ```
 func (system ActorSystemSupport) ProcessRemoteMessage(parts []string) {
