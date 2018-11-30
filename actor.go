@@ -12,32 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package actor_system
+package actorsystem
 
 import (
 	"fmt"
 	"sync"
 )
 
-type ActorsMap struct {
+type actorsMap struct {
 	sync.RWMutex
 	underlying map[string]*Envelope
 }
 
-func (rm *ActorsMap) Load(key string) (value *Envelope, ok bool) {
+// Load works same as get from map
+func (rm *actorsMap) Load(key string) (value *Envelope, ok bool) {
 	rm.RLock()
 	defer rm.RUnlock()
 	result, ok := rm.underlying[key]
 	return result, ok
 }
 
-func (rm *ActorsMap) Delete(key string) {
+// Delete works same as delete from map
+func (rm *actorsMap) Delete(key string) {
 	rm.Lock()
 	defer rm.Unlock()
 	delete(rm.underlying, key)
 }
 
-func (rm *ActorsMap) Store(key string, value *Envelope) {
+// Store works same as store to map
+func (rm *actorsMap) Store(key string, value *Envelope) {
 	rm.Lock()
 	defer rm.Unlock()
 	rm.underlying[key] = value
