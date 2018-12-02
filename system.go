@@ -23,7 +23,7 @@ import (
 )
 
 // ProcessLocalMessage is a function signature definition for local message processing
-type ProcessLocalMessage func(msg interface{}, receiver string, sender Coordinates)
+type ProcessLocalMessage func(msg interface{}, to Coordinates, from Coordinates)
 
 // ProcessRemoteMessage is a function signature definition for remote message processing
 type ProcessRemoteMessage func(parts []string)
@@ -157,7 +157,7 @@ func (s *Support) Done() <-chan struct{} {
 // EnsureContract check if contract of embedding is ok and marks ready
 func (s *Support) EnsureContract() {
 	if s.onRemoteMessage == nil {
-		s.onLocalMessage = func(msg interface{}, receiver string, sender Coordinates) {
+		s.onLocalMessage = func(msg interface{}, to Coordinates, from Coordinates) {
 			log.Warnf("[Call RegisterOnLocalMessage] Actor System %+v received local message %+v", s.Name, msg)
 		}
 	}

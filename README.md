@@ -34,7 +34,7 @@ func NewActorSystem() ActorSystem {
   }
 }
 
-func (s ActorSystem) ProcessLocalMessage(msg interface{}, receiver string, sender s.Coordinates) {
+func (s ActorSystem) ProcessLocalMessage(msg interface{}, receiver system.Coordinates, sender system.Coordinates) {
   fmt.Printf("Inherited Actor System recieved local message %+v\n", msg)
 }
 
@@ -60,7 +60,7 @@ When message is recieved from local environment function registered by `Register
 The simplest implementation of such function would be
 
 ```
-func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to string, from Coordinates) {
+func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to s.Coordinates, from Coordinates) {
   ref, err := system.ActorOf(to)
   if err != nil {
     log.Warnf("Actor not found [%s local]", to)
@@ -94,7 +94,7 @@ actorSystem := ActorSystem{
 
 return actorSystem
 
-func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to string, from Coordinates) {
+func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to system.Coordinates, from system.Coordinates) {
   ref, err := system.ActorOf(to)
   if err != nil {
     ref = actor.NewEnvelope(to)
@@ -124,10 +124,15 @@ func (system ActorSystemSupport) ProcessRemoteMessage(parts []string) {
     return
   }
 
-  region, to, sender, payload := parts[0], parts[1], parts[2], parts[3]
+  region, reciever, sender, payload := parts[0], parts[1], parts[2], parts[3]
   from := Coordinates{
     Name:   sender,
     Region: region,
+  }
+
+  to := Coordinates{
+    Name:   reciever,
+    Region: system.Name,
   }
 
   system.ProcessLocalMessage(payload, to, from)
