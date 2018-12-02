@@ -52,6 +52,10 @@ type Coordinates struct {
 	Region string
 }
 
+func (ref *Coordinates) String() string {
+	return ref.Region + "/" + ref.Name
+}
+
 // Context represents actor message envelope
 type Context struct {
 	Data     interface{}

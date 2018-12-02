@@ -34,7 +34,7 @@ func NewActorSystem() ActorSystem {
   }
 }
 
-func (s ActorSystem) ProcessLocalMessage(msg interface{}, receiver s.Coordinates, sender s.Coordinates) {
+func (s ActorSystem) ProcessLocalMessage(msg interface{}, receiver system.Coordinates, sender system.Coordinates) {
   fmt.Printf("Inherited Actor System recieved local message %+v\n", msg)
 }
 
@@ -94,7 +94,7 @@ actorSystem := ActorSystem{
 
 return actorSystem
 
-func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to s.Coordinates, from Coordinates) {
+func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to system.Coordinates, from system.Coordinates) {
   ref, err := system.ActorOf(to)
   if err != nil {
     ref = actor.NewEnvelope(to)
