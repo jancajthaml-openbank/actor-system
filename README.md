@@ -13,7 +13,7 @@ No nonsense, easiblity extensible actor system support without need or service d
 
 ### Simplest Example
 
-```
+```go
 import (
   "context"
   "fmt"
@@ -27,10 +27,11 @@ type ActorSystem struct {
 
 func NewActorSystem() ActorSystem {
   ctx := context.Background()
-  name := "ActorSystem"
+  name := "MyRegion"
+  lake := "127.0.0.1"
 
   return ActorSystem{
-    ActorSystemSupport: system.NewActorSystemSupport(ctx, name, "localhost"),
+    ActorSystemSupport: system.NewActorSystemSupport(ctx, name, lake),
   }
 }
 
@@ -43,12 +44,12 @@ func (s ActorSystem) ProcessRemoteMessage(parts []string) {
 }
 
 func main() {
-  as := NewActorSystem()
+  instance := NewActorSystem()
 
-  as.ActorSystemSupport.RegisterOnLocalMessage(as.ProcessLocalMessage)
-  as.ActorSystemSupport.RegisterOnRemoteMessage(as.ProcessRemoteMessage)
+  instance.ActorSystemSupport.RegisterOnLocalMessage(as.ProcessLocalMessage)
+  instance.ActorSystemSupport.RegisterOnRemoteMessage(as.ProcessRemoteMessage)
 
-  as.Start()
+  instance.Start()
 }
 ```
 
@@ -59,9 +60,9 @@ func main() {
 When message is recieved from local environment function registered by `RegisterOnLocalMessage` is called.
 The simplest implementation of such function would be
 
-```
-func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to s.Coordinates, from Coordinates) {
-  ref, err := system.ActorOf(to)
+```go
+func (s ActorSystemSupport) ProcessLocalMessage(msg interface{}, to s.Coordinates, from Coordinates) {
+  ref, err := s.ActorOf(to)
   if err != nil {
     log.Warnf("Actor not found [%s local]", to)
     return
@@ -69,36 +70,25 @@ func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to s.Coord
 
   ref.Tell(msg, from)
 }
-
 ```
 
 if you want to spray actors on-demand on local messages
 
-```
-func EchoActor(system ActorSystemSupport) func(State, Context) {
+```go
+func EchoActor(s ActorSystemSupport) func(State, Context) {
   return func(state State, context Context) {
-    defer system.UnregisterActor(context.Receiver.Name)
+    defer s.UnregisterActor(context.Receiver.Name)
     log.Debug("Echo actor in %+v received %+v", state, context)
   }
 }
 ```
 
-```
-
-actorSystem := ActorSystem{
-  ActorSystemSupport: system.NewActorSystemSupport(ctx, "Vault/"+cfg.Tenant, cfg.LakeHostname),
-  storage:            cfg.RootStorage,
-  tenant:             cfg.Tenant,
-  metrics:            metrics,
-}
-
-return actorSystem
-
-func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to system.Coordinates, from system.Coordinates) {
-  ref, err := system.ActorOf(to)
+```go
+func (s ActorSystemSupport) ProcessLocalMessage(msg interface{}, to system.Coordinates, from system.Coordinates) {
+  ref, err := s.ActorOf(to)
   if err != nil {
     ref = actor.NewEnvelope(to)
-    err = system.RegisterActor(envelope, EchoActor(system))
+    err = s.RegisterActor(envelope, EchoActor(s))
     if err != nil {
       log.Warnf("Unable to register Actor [%s local]", to)
       return
@@ -107,7 +97,6 @@ func (system ActorSystemSupport) ProcessLocalMessage(msg interface{}, to system.
 
   ref.Tell(msg, from)
 }
-
 ```
 
 ### Remote messages support
@@ -117,8 +106,8 @@ Uses [lake](https://github.com/jancajthaml-openbank/lake) relay for remote messa
 When message is recieved from remote environment function registered by `RegisterOnRemoteMessage` is called.
 The simplest implementation of such function would be
 
-```
-func (system ActorSystemSupport) ProcessRemoteMessage(parts []string) {
+```go
+func (s ActorSystemSupport) ProcessRemoteMessage(parts []string) {
   if len(parts) != 4 {
     log.Warnf("Invalid message received [%+v remote]", parts)
     return
@@ -135,7 +124,7 @@ func (system ActorSystemSupport) ProcessRemoteMessage(parts []string) {
     Region: system.Name,
   }
 
-  system.ProcessLocalMessage(payload, to, from)
+  s.ProcessLocalMessage(payload, to, from)
 }
 ```
 
