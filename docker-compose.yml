@@ -9,7 +9,7 @@ services:
   go:
     image: jancajthaml/go
     volumes:
-      - ./dev/lifecycle:/opt/lifecycle
+      - .:/project
       - .:/go/src/github.com/jancajthaml-openbank/actor-system
     working_dir: /go/src/github.com/jancajthaml-openbank/actor-system
     environment:
@@ -24,48 +24,30 @@ services:
 
   sync:
     extends: go
-    entrypoint: ["dep"]
-    command: ["ensure"]
-
-  # -------------------------------------------------------------------------- #
-
-  init:
-    extends: go
-    entrypoint: ["dep"]
-    command: ["init"]
+    entrypoint: ["/project/dev/lifecycle/sync"]
 
   # -------------------------------------------------------------------------- #
 
   update:
     extends: go
-    entrypoint: ["dep"]
-    command: ["ensure", "-update"]
-
-  # -------------------------------------------------------------------------- #
-
-  fetch:
-    extends: go
-    entrypoint: ["dep"]
-    command: ["ensure", "-add", "github.com/gin-gonic/gin"]
+    entrypoint: ["/project/dev/lifecycle/update"]
 
   # -------------------------------------------------------------------------- #
 
   lint:
     extends: go
-    entrypoint: ["/opt/lifecycle/lint"]
+    entrypoint: ["/project/dev/lifecycle/lint"]
 
   # -------------------------------------------------------------------------- #
 
   sec:
     extends: go
-    entrypoint: ["/opt/lifecycle/sec"]
+    entrypoint: ["/project/dev/lifecycle/sec"]
 
   # -------------------------------------------------------------------------- #
 
   test:
     extends: go
-    environment:
-      - GOMAXPROCS=1
-    command: ["test", "-v", "./...", "-benchmem", "-bench=.", "-timeout=60s", "-test.benchtime=5s"]
+    entrypoint: ["/project/dev/lifecycle/test"]
 
 # ---------------------------------------------------------------------------- #

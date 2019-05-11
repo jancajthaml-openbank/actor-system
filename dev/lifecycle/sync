@@ -30,4 +30,19 @@ fi
 
 cd /go/src/github.com/jancajthaml-openbank/${TARGET_PACKAGE}
 
-gosec ./...
+if [ -d vendor ] ; then
+  rm -rf vendor
+fi
+
+if [ -f go.sum ] ; then
+  rm -f go.sum
+fi
+
+GO111MODULE=on \
+  go mod verify
+
+GO111MODULE=on \
+  go mod tidy
+
+GO111MODULE=on \
+  go mod vendor
