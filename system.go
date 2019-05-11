@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	lake "github.com/jancajthaml-openbank/lake-client/go"
+	lake "github.com/jancajthaml-openbank/lake-client"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -26,7 +26,7 @@ import (
 type ProcessLocalMessage func(msg interface{}, to Coordinates, from Coordinates)
 
 // ProcessRemoteMessage is a function signature definition for remote message processing
-type ProcessRemoteMessage func(parts []string)
+type ProcessRemoteMessage func(parts string)
 
 // Support represents actor system capabilities
 type Support struct {
@@ -36,7 +36,7 @@ type Support struct {
 	cancel          context.CancelFunc
 	exitSignal      chan struct{}
 	actors          *actorsMap
-	lakeClient      *lake.Client
+	client          *lake.Client
 	onLocalMessage  ProcessLocalMessage
 	onRemoteMessage ProcessRemoteMessage
 }
@@ -44,7 +44,7 @@ type Support struct {
 // NewSupport constructor
 func NewSupport(parentCtx context.Context, systemName string, lakeHostname string) Support {
 	ctx, cancel := context.WithCancel(parentCtx)
-	lakeClient, err := lake.NewClient(ctx, systemName, lakeHostname)
+	client, err := lake.NewClient(ctx, systemName, lakeHostname)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -57,8 +57,8 @@ func NewSupport(parentCtx context.Context, systemName string, lakeHostname strin
 		actors: &actorsMap{
 			underlying: make(map[string]*Envelope),
 		},
-		lakeClient: lakeClient,
-		Name:       systemName,
+		client: client,
+		Name:   systemName,
 	}
 }
 
@@ -125,13 +125,8 @@ func (s *Support) UnregisterActor(name string) {
 }
 
 // SendRemote send message to remote region
-func (s *Support) SendRemote(destinationSystem, data string) {
-	s.lakeClient.Publish <- []string{destinationSystem, data}
-}
-
-// BroadcastRemote send message to all remote regions
-func (s *Support) BroadcastRemote(data string) {
-	s.lakeClient.Broadcast(data)
+func (s *Support) SendRemote(data string) {
+	s.client.Publish <- data
 }
 
 // Stop actor system and flush all actors
@@ -163,7 +158,7 @@ func (s *Support) EnsureContract() {
 	}
 
 	if s.onRemoteMessage == nil {
-		s.onRemoteMessage = func(parts []string) {
+		s.onRemoteMessage = func(parts string) {
 			log.Warnf("[Call RegisterOnRemoteMessage] Actor System %s received remote message %+v", s.Name, parts)
 		}
 	}
@@ -176,17 +171,17 @@ func (s *Support) Start() {
 	defer s.MarkDone()
 
 	log.Info("Starting Actor System")
-	s.lakeClient.Start()
+	s.client.Start()
 	s.EnsureContract()
 	log.Info("Start Actor System")
 
 	for {
 		select {
-		case message := <-s.lakeClient.Receive:
+		case message := <-s.client.Receive:
 			s.onRemoteMessage(message)
 		case <-s.Done():
 			log.Info("Stopping Actor System")
-			s.lakeClient.Stop()
+			s.client.Stop()
 			log.Info("Stop Actor System")
 			return
 		}

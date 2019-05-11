@@ -30,4 +30,9 @@ fi
 
 cd /go/src/github.com/jancajthaml-openbank/${TARGET_PACKAGE}
 
-gosec ./...
+GOMAXPROCS=1 \
+  go test \
+  -v ./... \
+  -benchmem \
+  -bench=. \
+  -timeout=20s
