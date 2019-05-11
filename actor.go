@@ -60,7 +60,7 @@ func (ref *Coordinates) String() string {
 type Context struct {
 	Data     interface{}
 	Self     *Envelope
-	Reciever Coordinates
+	Receiver Coordinates
 	Sender   Coordinates
 }
 
