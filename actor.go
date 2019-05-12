@@ -84,7 +84,7 @@ func NewEnvelope(name string, state interface{}) *Envelope {
 }
 
 // Tell queues message to actor
-func (ref *Envelope) Tell(data interface{}, reciever Coordinates, sender Coordinates) (err error) {
+func (ref *Envelope) Tell(data interface{}, receiver Coordinates, sender Coordinates) (err error) {
 	if ref == nil {
 		err = fmt.Errorf("actor reference %v not found", ref)
 		return
@@ -92,7 +92,7 @@ func (ref *Envelope) Tell(data interface{}, reciever Coordinates, sender Coordin
 	ref.Backlog <- Context{
 		Data:     data,
 		Self:     ref,
-		Reciever: reciever,
+		Receiver: receiver,
 		Sender:   sender,
 	}
 	return
