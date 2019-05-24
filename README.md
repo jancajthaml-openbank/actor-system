@@ -22,16 +22,16 @@ import (
 )
 
 type ActorSystem struct {
-  system.ActorSystemSupport
+  system.Support
 }
 
 func NewActorSystem() ActorSystem {
   ctx := context.Background()
-  name := "MyRegion"
-  lake := "127.0.0.1"
+  region := "MyRegion"
+  lakeEndpoint := "127.0.0.1"
 
   return ActorSystem{
-    ActorSystemSupport: system.NewActorSystemSupport(ctx, name, lake),
+    Support: system.NewSupport(ctx, region, lakeEndpoint),
   }
 }
 
