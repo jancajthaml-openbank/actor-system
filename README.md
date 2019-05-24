@@ -107,24 +107,38 @@ When message is recieved from remote environment function registered by `Registe
 The simplest implementation of such function would be
 
 ```go
-func (s ActorSystemSupport) ProcessRemoteMessage(parts []string) {
-  if len(parts) != 4 {
+func (s ActorSystemSupport) ProcessRemoteMessage(msg string) {
+	parts := strings.Split(msg, " ")
+
+  if len(parts) < 4 {
     log.Warnf("Invalid message received [%+v remote]", parts)
     return
   }
 
-  region, reciever, sender, payload := parts[0], parts[1], parts[2], parts[3]
-  from := Coordinates{
-    Name:   sender,
-    Region: region,
-  }
+  recieverRegion, senderRegion, receiverName, senderName := parts[0], parts[1], parts[2], parts[3]
 
-  to := Coordinates{
-    Name:   reciever,
-    Region: system.Name,
-  }
+	from := system.Coordinates{
+		Name:   senderName,
+		Region: senderRegion,
+	}
 
-  s.ProcessLocalMessage(payload, to, from)
+	to := system.Coordinates{
+		Name:   receiverName,
+		Region: recieverRegion,
+	}
+	
+	var message interface{}
+
+	switch parts[4] {
+
+	case "X": 
+	  message = new(XMessage)
+
+	default:
+		message = new(DefaultMessage)
+	}
+		
+  s.ProcessLocalMessage(message, to, from)
 }
 ```
 
