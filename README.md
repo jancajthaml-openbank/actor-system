@@ -39,8 +39,8 @@ func (s ActorSystem) ProcessLocalMessage(msg interface{}, receiver system.Coordi
   fmt.Printf("Inherited Actor System recieved local message %+v\n", msg)
 }
 
-func (s ActorSystem) ProcessRemoteMessage(parts []string) {
-  fmt.Printf("Inherited Actor System recieved remote message %+v\n", parts)
+func (s ActorSystem) ProcessRemoteMessage(msg string) {
+  fmt.Printf("Inherited Actor System recieved remote message %s\n", msg)
 }
 
 func main() {
