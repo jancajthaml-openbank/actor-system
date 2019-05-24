@@ -108,7 +108,7 @@ The simplest implementation of such function would be
 
 ```go
 func (s ActorSystemSupport) ProcessRemoteMessage(msg string) {
-	parts := strings.Split(msg, " ")
+  parts := strings.Split(msg, " ")
 
   if len(parts) < 4 {
     log.Warnf("Invalid message received [%+v remote]", parts)
@@ -117,27 +117,27 @@ func (s ActorSystemSupport) ProcessRemoteMessage(msg string) {
 
   recieverRegion, senderRegion, receiverName, senderName := parts[0], parts[1], parts[2], parts[3]
 
-	from := system.Coordinates{
-		Name:   senderName,
-		Region: senderRegion,
-	}
+  from := system.Coordinates{
+    Name:   senderName,
+    Region: senderRegion,
+  }
 
-	to := system.Coordinates{
-		Name:   receiverName,
-		Region: recieverRegion,
-	}
-	
-	var message interface{}
+  to := system.Coordinates{
+    Name:   receiverName,
+    Region: recieverRegion,
+  }
+  
+  var message interface{}
 
-	switch parts[4] {
+  switch parts[4] {
 
-	case "X": 
-	  message = new(XMessage)
+  case "X": 
+    message = new(XMessage)
 
-	default:
-		message = new(DefaultMessage)
-	}
-		
+  default:
+    message = new(DefaultMessage)
+  }
+    
   s.ProcessLocalMessage(message, to, from)
 }
 ```
