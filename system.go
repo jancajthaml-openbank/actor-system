@@ -107,7 +107,6 @@ func (s *Support) ActorOf(name string) (*Envelope, error) {
 	if !exists {
 		return nil, fmt.Errorf("actor %v not registered", name)
 	}
-
 	return ref, nil
 }
 
@@ -117,7 +116,6 @@ func (s *Support) UnregisterActor(name string) {
 	if err != nil {
 		return
 	}
-
 	s.actors.Delete(name)
 	ref.Exit <- nil
 	close(ref.Backlog)
@@ -134,7 +132,6 @@ func (s *Support) Stop() {
 	for actorName := range s.actors.underlying {
 		s.UnregisterActor(actorName)
 	}
-
 	s.cancel()
 	<-s.exitSignal
 }
@@ -149,8 +146,7 @@ func (s *Support) Done() <-chan struct{} {
 	return s.ctx.Done()
 }
 
-// EnsureContract check if contract of embedding is ok and marks ready
-func (s *Support) EnsureContract() {
+func (s *Support) ensureContract() {
 	if s.onRemoteMessage == nil {
 		s.onLocalMessage = func(msg interface{}, to Coordinates, from Coordinates) {
 			log.Warnf("[Call RegisterOnLocalMessage] Actor System %+v received local message %+v", s.Name, msg)
@@ -172,7 +168,7 @@ func (s *Support) Start() {
 
 	log.Info("Starting Actor System")
 	s.client.Start()
-	s.EnsureContract()
+	s.ensureContract()
 	log.Info("Start Actor System")
 
 	for {
