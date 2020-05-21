@@ -351,7 +351,6 @@ func (s *System) Stop() {
 }
 
 func (s *System) handshake() {
-
 	var stash []string
 	pingMessage := s.Name + " ]"
 
@@ -405,16 +404,15 @@ func (s *System) Start() {
 				if len(parts) < 4 {
 					continue
 				}
-				recieverRegion, senderRegion, receiverName, senderName := parts[0], parts[1], parts[2], parts[3]
 				s.onMessage(
 					parts[4],
 					Coordinates{
-						Name:   receiverName,
-						Region: recieverRegion,
+						Name:   parts[2],
+						Region: parts[0],
 					},
 					Coordinates{
-						Name:   senderName,
-						Region: senderRegion,
+						Name:   parts[3],
+						Region: parts[1],
 					},
 				)
 			case <-s.Done():
