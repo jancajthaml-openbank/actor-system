@@ -6,10 +6,10 @@ import (
 	"io/ioutil"
 	"runtime"
 	//"sync"
+	zmq "github.com/pebbe/zmq4"
+	log "github.com/sirupsen/logrus"
 	"testing"
 	"time"
-	log "github.com/sirupsen/logrus"
-	zmq "github.com/pebbe/zmq4"
 )
 
 func init() {
@@ -25,10 +25,10 @@ func relay(ctx context.Context, cancel context.CancelFunc) {
 	}()
 
 	var (
-		chunk   string
-		pull *zmq.Socket
-		pub *zmq.Socket
-		err     error
+		chunk string
+		pull  *zmq.Socket
+		pub   *zmq.Socket
+		err   error
 	)
 
 	zCtx, err := zmq.NewContext()
@@ -61,17 +61,17 @@ func relay(ctx context.Context, cancel context.CancelFunc) {
 
 	for {
 		select {
-			case <-ctx.Done():
+		case <-ctx.Done():
+			return
+		default:
+			chunk, err = pull.Recv(0)
+			if err != nil {
 				return
-			default:
-				chunk, err = pull.Recv(0)
-				if err != nil {
-					return
-				}
-				_, err = pub.Send(chunk, 0)
-				if err != nil {
-					return
-				}
+			}
+			_, err = pub.Send(chunk, 0)
+			if err != nil {
+				return
+			}
 		}
 	}
 }

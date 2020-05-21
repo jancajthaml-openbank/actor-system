@@ -208,14 +208,14 @@ subConnection:
 	}
 	defer channel.SetUnsubscribe(s.Name + " ")
 
-	loop:
-		chunk, err = channel.Recv(0)
-		if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
-			log.Warnf("SUB stopping with %+v", err)
-			goto eos
-		}
-		s.receive <- chunk
-		goto loop
+loop:
+	chunk, err = channel.Recv(0)
+	if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
+		log.Warnf("SUB stopping with %+v", err)
+		goto eos
+	}
+	s.receive <- chunk
+	goto loop
 
 eos:
 	s.Stop()
@@ -365,18 +365,18 @@ func (s *System) handshake() {
 		log.Infof("Start actor-system %s performing handshake", s.Name)
 		s.publish <- pingMessage
 		select {
-			case <-s.Done():
-				return
-			case data := <-s.receive:
-				if data != pingMessage {
-					stash = append(stash, data)
-					continue
-				}
-				ticker.Stop()
-				for _, data := range stash {
-					s.receive <- data
-				}
-				return
+		case <-s.Done():
+			return
+		case data := <-s.receive:
+			if data != pingMessage {
+				stash = append(stash, data)
+				continue
+			}
+			ticker.Stop()
+			for _, data := range stash {
+				s.receive <- data
+			}
+			return
 		case <-ticker.C:
 			continue
 		}
