@@ -25,8 +25,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const backoff = 100 * time.Millisecond
-
 // ProcessMessage is a function signature definition for remote message processing
 type ProcessMessage func(msg string, to Coordinates, from Coordinates)
 
@@ -105,7 +103,7 @@ pushCreation:
 	if err != nil && err.Error() == "resource temporarily unavailable" {
 		log.Warn("Resources unavailable in connect")
 		select {
-		case <-time.After(backoff):
+		case <-time.After(100 * time.Millisecond):
 			goto pushCreation
 		}
 	} else if err != nil {
@@ -124,7 +122,7 @@ pushConnection:
 	} else if err != nil {
 		log.Warn("Unable to connect to ZMQ address ", err)
 		select {
-		case <-time.After(backoff):
+		case <-time.After(100 * time.Millisecond):
 			goto pushConnection
 		}
 	}
@@ -178,7 +176,7 @@ subCreation:
 	if err != nil && err.Error() == "resource temporarily unavailable" {
 		log.Warn("Resources unavailable in connect")
 		select {
-		case <-time.After(backoff):
+		case <-time.After(100 * time.Millisecond):
 			goto subCreation
 		}
 	} else if err != nil {
@@ -197,7 +195,7 @@ subConnection:
 	} else if err != nil {
 		log.Warn("Unable to connect to SUB address ", err)
 		select {
-		case <-time.After(backoff):
+		case <-time.After(100 * time.Millisecond):
 			goto subConnection
 		}
 	}
