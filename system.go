@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019, Jan Cajthaml <jan.cajthaml@gmail.com>
+// Copyright (c) 2016-2020, Jan Cajthaml <jan.cajthaml@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const backoff = 500 * time.Millisecond
+const backoff = 100 * time.Millisecond
 
 // ProcessMessage is a function signature definition for remote message processing
 type ProcessMessage func(msg string, to Coordinates, from Coordinates)
@@ -213,18 +213,20 @@ func (s *System) createPushChannel() chan<- string {
 	in := make(chan string)
 
 	go func() {
-	loop:
-		ctx, cancel := context.WithCancel(s.ctx)
-		go s.workZMQPush(ctx, cancel)
-		<-ctx.Done()
-		if ctx.Err() == nil {
-			goto loop
+		for {
+			ctx, cancel := context.WithCancel(s.ctx)
+			go s.workZMQPush(ctx, cancel)
+			<-ctx.Done()
+			if s.IsCanceled() {
+				return
+			}
 		}
 	}()
 
 	var data string
 
 	go func() {
+
 	push:
 		select {
 		case data = <-in:
@@ -236,10 +238,12 @@ func (s *System) createPushChannel() chan<- string {
 			goto sink
 		}
 		goto push
+
 	sink:
 		data = <-in
 		s.sub <- ""
-		goto sink
+		s.Stop()
+		return
 	}()
 
 	return in
@@ -249,12 +253,13 @@ func (s *System) createRecieveChannel() <-chan string {
 	out := make(chan string)
 
 	go func() {
-	loop:
-		ctx, cancel := context.WithCancel(s.ctx)
-		go s.workZMQSub(ctx, cancel)
-		<-ctx.Done()
-		if ctx.Err() == nil {
-			goto loop
+		for {
+			ctx, cancel := context.WithCancel(s.ctx)
+			go s.workZMQSub(ctx, cancel)
+			<-ctx.Done()
+			if s.IsCanceled() {
+				return
+			}
 		}
 	}()
 
@@ -293,6 +298,7 @@ func (s *System) createRecieveChannel() <-chan string {
 			goto sink
 		}
 		goto pull
+
 	sink:
 		select {
 		case <-s.sub:
@@ -300,7 +306,9 @@ func (s *System) createRecieveChannel() <-chan string {
 		case <-time.After(backoff):
 			out <- ""
 		}
-		goto sink
+
+		s.Stop()
+		return
 	}()
 
 	return out
@@ -453,22 +461,24 @@ func (s *System) Start() {
 			select {
 			case message := <-s.Receive:
 				parts := strings.SplitN(message, " ", 5)
-
 				if len(parts) < 4 {
 					log.Warnf("Invalid message received [%+v]", parts)
 					continue
 				}
 				recieverRegion, senderRegion, receiverName, senderName := parts[0], parts[1], parts[2], parts[3]
-				from := Coordinates{
-					Name:   senderName,
-					Region: senderRegion,
-				}
-				to := Coordinates{
-					Name:   receiverName,
-					Region: recieverRegion,
-				}
-				s.onMessage(parts[4], to, from)
+				s.onMessage(
+					parts[4],
+					Coordinates{
+						Name:   receiverName,
+						Region: recieverRegion,
+					},
+					Coordinates{
+						Name:   senderName,
+						Region: senderRegion,
+					},
+				)
 			case <-s.Done():
+				log.Infof("Stopping actor-system-%s", s.Name)
 				for actorName := range s.actors.underlying {
 					s.UnregisterActor(actorName)
 				}
