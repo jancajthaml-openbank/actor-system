@@ -35,44 +35,45 @@ func NewActorSystem() ActorSystem {
   }
 }
 
-func (s ActorSystem) ProcessLocalMessage(msg interface{}, receiver system.Coordinates, sender system.Coordinates) {
-  fmt.Printf("Inherited Actor System recieved local message %+v\n", msg)
-}
-
-func (s ActorSystem) ProcessRemoteMessage(msg string) {
-  fmt.Printf("Inherited Actor System recieved remote message %s\n", msg)
+func (s ActorSystem) ProcessMessage(msg string, to system.Coordinates, from system.Coordinates) {
+  fmt.Printf("%+v -> %+v says %s\n", from, to, msg)
 }
 
 func main() {
   instance := NewActorSystem()
 
-  instance.ActorSystemSupport.RegisterOnLocalMessage(as.ProcessLocalMessage)
-  instance.ActorSystemSupport.RegisterOnRemoteMessage(as.ProcessRemoteMessage)
+  instance.ActorSystemSupport.RegisterOnMessage(as.ProcessMessage)
 
   instance.Start()
 }
 ```
 
----
+### Messaging
 
-### Local Messages support
+Uses [lake](https://github.com/jancajthaml-openbank/lake) relay for remote messages relay.
 
-When message is recieved from local environment function registered by `RegisterOnLocalMessage` is called.
+When message is recieved from remote environment function registered by `RegisterOnRemoteMessage` is called.
 The simplest implementation of such function would be
 
 ```go
-func (s ActorSystemSupport) ProcessLocalMessage(msg interface{}, to s.Coordinates, from Coordinates) {
-  ref, err := s.ActorOf(to)
-  if err != nil {
-    log.Warnf("Actor not found [%s local]", to)
-    return
+func (s ActorSystemSupport) ProcessMessage(msg string, to system.Coordinates, from system.Coordinates) {
+
+  var message interface{}
+
+  switch msg {
+
+  case "X":
+    message = new(XMessage)
+
+  default:
+    message = new(DefaultMessage)
   }
 
-  ref.Tell(msg, from)
+  s.ProcessLocalMessage(message, to, from)
 }
 ```
 
-if you want to spray actors on-demand on local messages
+if you want to spray actors on-demand on messages
 
 ```go
 func EchoActor(s ActorSystemSupport) func(State, Context) {
@@ -84,7 +85,7 @@ func EchoActor(s ActorSystemSupport) func(State, Context) {
 ```
 
 ```go
-func (s ActorSystemSupport) ProcessLocalMessage(msg interface{}, to system.Coordinates, from system.Coordinates) {
+func (s ActorSystemSupport) ProcessMessage(msg interface{}, to system.Coordinates, from system.Coordinates) {
   ref, err := s.ActorOf(to)
   if err != nil {
     ref = actor.NewEnvelope(to)
@@ -99,50 +100,7 @@ func (s ActorSystemSupport) ProcessLocalMessage(msg interface{}, to system.Coord
 }
 ```
 
-### Remote messages support
-
-Uses [lake](https://github.com/jancajthaml-openbank/lake) relay for remote messages relay.
-
-When message is recieved from remote environment function registered by `RegisterOnRemoteMessage` is called.
-The simplest implementation of such function would be
-
-```go
-func (s ActorSystemSupport) ProcessRemoteMessage(msg string) {
-  parts := strings.Split(msg, " ")
-
-  if len(parts) < 4 {
-    log.Warnf("Invalid message received [%+v remote]", parts)
-    return
-  }
-
-  recieverRegion, senderRegion, receiverName, senderName := parts[0], parts[1], parts[2], parts[3]
-
-  from := system.Coordinates{
-    Name:   senderName,
-    Region: senderRegion,
-  }
-
-  to := system.Coordinates{
-    Name:   receiverName,
-    Region: recieverRegion,
-  }
-  
-  var message interface{}
-
-  switch parts[4] {
-
-  case "X": 
-    message = new(XMessage)
-
-  default:
-    message = new(DefaultMessage)
-  }
-    
-  s.ProcessLocalMessage(message, to, from)
-}
-```
-
-You don't need to have actor instance to send message to remote region, you can use `system.SendRemote` function instead.
+You don't need to have actor instance to send message to remote region, you can use `system.SendMessage` function instead.
 
 ### Lifecycle control
 
