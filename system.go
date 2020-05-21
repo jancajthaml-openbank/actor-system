@@ -341,7 +341,7 @@ func (s *System) RegisterActor(ref *Envelope, initialReaction func(interface{}, 
 			case p := <-ref.Backlog:
 				ref.Receive(p)
 			case <-ref.Exit:
-				log.Info("Actor %s Stopping", ref.Name)
+				log.Infof("Actor %s Stopping", ref.Name)
 				return
 			}
 		}
