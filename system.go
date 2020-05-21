@@ -135,7 +135,6 @@ loop:
 		}
 		_, err = channel.Send(chunk, 0)
 		if err != nil {
-			log.Warnf("Unable to send message error: %+v", err)
 			goto eos
 		}
 	}
@@ -209,7 +208,6 @@ subConnection:
 loop:
 	chunk, err = channel.Recv(0)
 	if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
-		log.Warnf("SUB stopping with %+v", err)
 		goto eos
 	}
 	s.receive <- chunk
@@ -360,7 +358,6 @@ func (s *System) handshake() {
 	ticker := time.NewTicker(500 * time.Millisecond)
 
 	for {
-		log.Infof("Start actor-system %s performing handshake", s.Name)
 		s.publish <- pingMessage
 		select {
 		case <-s.Done():
@@ -406,7 +403,6 @@ func (s *System) Start() {
 			case message := <-s.receive:
 				parts := strings.SplitN(message, " ", 5)
 				if len(parts) < 4 {
-					log.Warnf("Invalid message received [%+v]", parts)
 					continue
 				}
 				recieverRegion, senderRegion, receiverName, senderName := parts[0], parts[1], parts[2], parts[3]
