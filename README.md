@@ -31,7 +31,7 @@ func NewActorSystem() ActorSystem {
   lakeEndpoint := "127.0.0.1"
 
   return ActorSystem{
-    Support: system.NewSupport(ctx, region, lakeEndpoint),
+    System: system.NewSupport(ctx, region, lakeEndpoint),
   }
 }
 
@@ -56,7 +56,7 @@ When message is recieved from remote environment function registered by `Registe
 The simplest implementation of such function would be
 
 ```go
-func (s ActorSystemSupport) ProcessMessage(msg string, to system.Coordinates, from system.Coordinates) {
+func (s ActorSystem) ProcessMessage(msg string, to system.Coordinates, from system.Coordinates) {
 
   var message interface{}
 
@@ -85,7 +85,7 @@ func EchoActor(s ActorSystemSupport) func(State, Context) {
 ```
 
 ```go
-func (s ActorSystemSupport) ProcessMessage(msg interface{}, to system.Coordinates, from system.Coordinates) {
+func (s ActorSystemSupport) ProcessLocalMessage(msg interface{}, to system.Coordinates, from system.Coordinates) {
   ref, err := s.ActorOf(to)
   if err != nil {
     ref = actor.NewEnvelope(to)
@@ -95,7 +95,6 @@ func (s ActorSystemSupport) ProcessMessage(msg interface{}, to system.Coordinate
       return
     }
   }
-
   ref.Tell(msg, from)
 }
 ```
