@@ -1,5 +1,7 @@
 # actor-system
 
+![Health Check](https://github.com/jancajthaml-openbank/actor-system/workflows/Health%20Check/badge.svg)
+
 No nonsense, easiblity extensible actor system support without need or service discovery and actor tracking.
 
 ### Features
