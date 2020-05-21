@@ -72,7 +72,7 @@ func NewSystem(parentCtx context.Context, name string, lakeHostname string) Syst
 		sub:  make(chan string),
 		host: lakeHostname,
 		onMessage: func(msg string, to Coordinates, from Coordinates) {
-			log.Warnf("[Call OnMessage] actor-system-%s received message %+v from: %+v to: %+v", name, msg, from, to)
+			log.Warnf("[Call OnMessage] actor-system %s received message %+v from: %+v to: %+v", name, msg, from, to)
 		},
 	}
 }
@@ -336,10 +336,12 @@ func (s *System) RegisterActor(ref *Envelope, initialReaction func(interface{}, 
 		for {
 			select {
 			case <-s.Done():
+				log.Info("Actor %s Stopping", ref.Name)
 				return
 			case p := <-ref.Backlog:
 				ref.Receive(p)
 			case <-ref.Exit:
+				log.Info("Actor %s Stopping", ref.Name)
 				return
 			}
 		}
@@ -364,8 +366,6 @@ func (s *System) UnregisterActor(name string) {
 		return
 	}
 	s.actors.Delete(name)
-	ref.Exit <- nil
-	close(ref.Backlog)
 	close(ref.Exit)
 }
 
@@ -388,7 +388,7 @@ func (s *System) WaitReady(deadline time.Duration) (err error) {
 			case error:
 				err = x
 			default:
-				err = fmt.Errorf("actor-system-%s unknown panic", s.Name)
+				err = fmt.Errorf("actor-system %s unknown panic", s.Name)
 			}
 		}
 	}()
@@ -400,7 +400,7 @@ func (s *System) WaitReady(deadline time.Duration) (err error) {
 		err = nil
 		return
 	case <-ticker.C:
-		err = fmt.Errorf("actor-system-%s was not ready within %v seconds", s.Name, deadline)
+		err = fmt.Errorf("actor-system %s was not ready within %v seconds", s.Name, deadline)
 		return
 	}
 }
@@ -454,7 +454,7 @@ func (s *System) Start() {
 		return
 	}
 
-	log.Infof("Start actor-system-%s", s.Name)
+	log.Infof("Start actor-system %s", s.Name)
 
 	go func() {
 		for {
@@ -478,7 +478,6 @@ func (s *System) Start() {
 					},
 				)
 			case <-s.Done():
-				log.Infof("Stopping actor-system-%s", s.Name)
 				for actorName := range s.actors.underlying {
 					s.UnregisterActor(actorName)
 				}
@@ -489,5 +488,5 @@ func (s *System) Start() {
 	}()
 
 	s.WaitStop()
-	log.Infof("Stop actor-system-%s", s.Name)
+	log.Infof("Stop actor-system %s", s.Name)
 }
