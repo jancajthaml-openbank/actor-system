@@ -119,7 +119,7 @@ pushCreation:
 
 pushConnection:
 	err = channel.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5562))
-	if err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM {
+	if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
 		return
 	} else if err != nil {
 		log.Warn("Unable to connect to ZMQ address ", err)
@@ -129,13 +129,9 @@ pushConnection:
 		}
 	}
 
-	log.Info("PUSH entering loop")
-
 loop:
-	log.Info("in PUSH")
 	select {
 	case chunk = <-s.publish:
-		log.Infof("PUSH will push data {%+v}", chunk)
 		if chunk == "" {
 			goto loop
 		}
@@ -196,7 +192,7 @@ subCreation:
 
 subConnection:
 	err = channel.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
-	if err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM {
+	if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
 		return
 	} else if err != nil {
 		log.Warn("Unable to connect to SUB address ", err)
@@ -212,12 +208,9 @@ subConnection:
 	}
 	defer channel.SetUnsubscribe(s.Name + " ")
 
-	log.Info("SUB entering loop")
-
 	loop:
-		log.Info("in SUB")
 		chunk, err = channel.Recv(0)
-		if err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM {
+		if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
 			log.Warnf("SUB stopping with %+v", err)
 			goto eos
 		}
