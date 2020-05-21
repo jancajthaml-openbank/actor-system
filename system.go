@@ -25,8 +25,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const backoff = 100 * time.Millisecond
-
 // ProcessMessage is a function signature definition for remote message processing
 type ProcessMessage func(msg string, to Coordinates, from Coordinates)
 
@@ -41,10 +39,8 @@ type System struct {
 	actors    *actorsMap
 	onMessage ProcessMessage
 	host      string
-	push      chan string
-	sub       chan string
-	Publish   chan<- string
-	Receive   <-chan string
+	publish   chan string
+	receive   chan string
 }
 
 // NewSystem constructor
@@ -68,118 +64,46 @@ func NewSystem(parentCtx context.Context, name string, lakeHostname string) Syst
 		actors: &actorsMap{
 			underlying: make(map[string]*Envelope),
 		},
-		push: make(chan string),
-		sub:  make(chan string),
 		host: lakeHostname,
 		onMessage: func(msg string, to Coordinates, from Coordinates) {
 			log.Warnf("[Call OnMessage] actor-system %s received message %+v from: %+v to: %+v", name, msg, from, to)
 		},
+		publish: make(chan string),
+		receive: make(chan string),
 	}
 }
 
-func (s *System) workZMQSub(ctx context.Context, cancel context.CancelFunc) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	defer cancel()
-	defer func() {
-		if e := recover(); e != nil {
-			switch x := e.(type) {
-			case string:
-				log.Warnf("SUB recovered from crash %s", x)
-			case error:
-				log.Warnf("SUB recovered from crash %+v", x)
-			default:
-				log.Warn("SUB recovered from crash")
-			}
-		}
-	}()
-
+func (s *System) workPush() {
 	var (
 		chunk   string
 		channel *zmq.Socket
 		err     error
 	)
 
-subCreation:
-	channel, err = zmq.NewSocket(zmq.SUB)
-	if err != nil && err.Error() == "resource temporarily unavailable" {
-		log.Warn("Resources unavailable in connect")
-		select {
-		case <-time.After(backoff):
-			goto subCreation
-		}
-	} else if err != nil {
-		log.Warn("Unable to connect SUB socket ", err)
-		return
-	}
-	channel.SetConflate(false)
-	channel.SetImmediate(true)
-	channel.SetRcvhwm(0)
-	defer channel.Close()
+	runtime.LockOSThread()
+	defer func() {
+		recover()
+		s.Stop()
+		runtime.UnlockOSThread()
+	}()
 
-subConnection:
-	err = channel.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
+	ctx, err := zmq.NewContext()
 	if err != nil {
-		log.Warn("Unable to connect to SUB address ", err)
-		select {
-		case <-time.After(backoff):
-			goto subConnection
-		}
-	}
-
-	if err = channel.SetSubscribe(s.Name + " "); err != nil {
-		log.Warnf("Subscription to %s failed with: %+v", s.Name, err)
-		return
-	}
-	defer channel.SetUnsubscribe(s.Name + " ")
-
-loop:
-	if ctx.Err() != nil {
+		log.Warnf("Unable to create ZMQ context %+v", err)
 		return
 	}
 
-	chunk, err = channel.Recv(0)
-	switch err {
-	case nil:
-		s.sub <- chunk
-	case zmq.ErrorSocketClosed, zmq.ErrorContextClosed:
-		log.Warnf("ZMQ connection closed %+v", err)
-		return
-	default:
-		log.Warnf("Error while receiving ZMQ message %+v", err)
-	}
-	goto loop
-}
-
-func (s *System) workZMQPush(ctx context.Context, cancel context.CancelFunc) {
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	defer cancel()
-	defer func() {
-		if e := recover(); e != nil {
-			switch x := e.(type) {
-			case string:
-				log.Warnf("ZMQ push recovered from crash %s", x)
-			case error:
-				log.Warnf("ZMQ push recovered from crash %+v", x)
-			default:
-				log.Warn("ZMQ push recovered from crash")
-			}
-		}
+	go func() {
+		<-s.Done()
+		ctx.Term()
 	}()
-
-	var (
-		chunk   string
-		channel *zmq.Socket
-		err     error
-	)
 
 pushCreation:
-	channel, err = zmq.NewSocket(zmq.PUSH)
+	channel, err = ctx.NewSocket(zmq.PUSH)
 	if err != nil && err.Error() == "resource temporarily unavailable" {
 		log.Warn("Resources unavailable in connect")
 		select {
-		case <-time.After(backoff):
+		case <-time.After(100 * time.Millisecond):
 			goto pushCreation
 		}
 	} else if err != nil {
@@ -193,125 +117,107 @@ pushCreation:
 
 pushConnection:
 	err = channel.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5562))
-	if err != nil {
+	if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
+		return
+	} else if err != nil {
 		log.Warn("Unable to connect to ZMQ address ", err)
 		select {
-		case <-time.After(backoff):
+		case <-time.After(100 * time.Millisecond):
 			goto pushConnection
 		}
 	}
 
 loop:
-	chunk = <-s.push
-	if ctx.Err() == nil {
-		channel.Send(chunk, 0)
-		goto loop
+	select {
+	case chunk = <-s.publish:
+		if chunk == "" {
+			goto loop
+		}
+		_, err = channel.Send(chunk, 0)
+		if err != nil {
+			log.Warnf("Unable to send message error: %+v", err)
+			goto eos
+		}
 	}
+	goto loop
+
+eos:
+	s.Stop()
+	return
 }
 
-func (s *System) createPushChannel() chan<- string {
-	in := make(chan string)
+func (s *System) workSub() {
+	var (
+		chunk   string
+		channel *zmq.Socket
+		err     error
+	)
 
-	go func() {
-		for {
-			ctx, cancel := context.WithCancel(s.ctx)
-			go s.workZMQPush(ctx, cancel)
-			<-ctx.Done()
-			if s.IsCanceled() {
-				return
-			}
-		}
-	}()
-
-	var data string
-
-	go func() {
-
-	push:
-		select {
-		case data = <-in:
-			if data == "" {
-				goto push
-			}
-			s.push <- data
-		case <-s.Done():
-			goto sink
-		}
-		goto push
-
-	sink:
-		data = <-in
-		s.sub <- ""
+	runtime.LockOSThread()
+	defer func() {
+		recover()
 		s.Stop()
-		return
+		runtime.UnlockOSThread()
 	}()
 
-	return in
-}
-
-func (s *System) createRecieveChannel() <-chan string {
-	out := make(chan string)
+	ctx, err := zmq.NewContext()
+	if err != nil {
+		log.Warnf("Unable to create ZMQ context %+v", err)
+		return
+	}
 
 	go func() {
-		for {
-			ctx, cancel := context.WithCancel(s.ctx)
-			go s.workZMQSub(ctx, cancel)
-			<-ctx.Done()
-			if s.IsCanceled() {
-				return
-			}
-		}
+		<-s.Done()
+		ctx.Term()
 	}()
 
-	pingMessage := s.Name + " ]"
-
-	var stash []string
-	var data string
-
-	go func() {
-	handshake:
-		s.push <- pingMessage
+subCreation:
+	channel, err = ctx.NewSocket(zmq.SUB)
+	if err != nil && err.Error() == "resource temporarily unavailable" {
+		log.Warn("Resources unavailable in connect")
 		select {
-		case data = <-s.sub:
-			if data != pingMessage {
-				stash = append(stash, data)
-				goto handshake
-			}
-			for _, data := range stash {
-				s.sub <- data
-			}
-			goto pull
-		case <-s.Done():
-			goto sink
-		case <-time.After(backoff):
-			goto handshake
+		case <-time.After(100 * time.Millisecond):
+			goto subCreation
 		}
-
-	pull:
-		select {
-		case data = <-s.sub:
-			if data == pingMessage {
-				goto pull
-			}
-			out <- data
-		case <-s.Done():
-			goto sink
-		}
-		goto pull
-
-	sink:
-		select {
-		case <-s.sub:
-			out <- ""
-		case <-time.After(backoff):
-			out <- ""
-		}
-
-		s.Stop()
+	} else if err != nil {
+		log.Warn("Unable to connect SUB socket ", err)
 		return
-	}()
+	}
+	channel.SetConflate(false)
+	channel.SetImmediate(true)
+	channel.SetRcvhwm(0)
+	defer channel.Close()
 
-	return out
+subConnection:
+	err = channel.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
+	if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
+		return
+	} else if err != nil {
+		log.Warn("Unable to connect to SUB address ", err)
+		select {
+		case <-time.After(100 * time.Millisecond):
+			goto subConnection
+		}
+	}
+
+	if err = channel.SetSubscribe(s.Name + " "); err != nil {
+		log.Warnf("Subscription to %s failed with: %+v", s.Name, err)
+		return
+	}
+	defer channel.SetUnsubscribe(s.Name + " ")
+
+loop:
+	chunk, err = channel.Recv(0)
+	if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
+		log.Warnf("SUB stopping with %+v", err)
+		goto eos
+	}
+	s.receive <- chunk
+	goto loop
+
+eos:
+	s.Stop()
+	return
 }
 
 // RegisterOnMessage register callback on message receive
@@ -336,7 +242,7 @@ func (s *System) RegisterActor(ref *Envelope, initialReaction func(interface{}, 
 		for {
 			select {
 			case <-s.Done():
-				log.Info("Actor %s Stopping", ref.Name)
+				log.Infof("Actor %s Stopping", ref.Name)
 				return
 			case p := <-ref.Backlog:
 				ref.Receive(p)
@@ -374,12 +280,15 @@ func (s *System) SendMessage(msg string, to Coordinates, from Coordinates) {
 	if to.Region == from.Region {
 		s.onMessage(msg, to, from)
 	} else {
-		s.Publish <- to.Region + " " + from.Region + " " + to.Name + " " + from.Name + " " + msg
+		s.publish <- (to.Region + " " + from.Region + " " + to.Name + " " + from.Name + " " + msg)
 	}
 }
 
 // WaitReady wait for daemon to be ready within given deadline
 func (s *System) WaitReady(deadline time.Duration) (err error) {
+	if s.IsCanceled() {
+		return
+	}
 	defer func() {
 		if e := recover(); e != nil {
 			switch x := e.(type) {
@@ -412,6 +321,9 @@ func (s *System) WaitStop() {
 
 // GreenLight signals daemon to start work
 func (s *System) GreenLight() {
+	if s.IsCanceled() {
+		return
+	}
 	s.CanStart <- nil
 }
 
@@ -440,16 +352,48 @@ func (s *System) Stop() {
 	s.cancel()
 }
 
+func (s *System) handshake() {
+
+	var stash []string
+	pingMessage := s.Name + " ]"
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+
+	for {
+		log.Infof("Start actor-system %s performing handshake", s.Name)
+		s.publish <- pingMessage
+		select {
+		case <-s.Done():
+			return
+		case data := <-s.receive:
+			if data != pingMessage {
+				stash = append(stash, data)
+				continue
+			}
+			ticker.Stop()
+			for _, data := range stash {
+				s.receive <- data
+			}
+			return
+		case <-ticker.C:
+			continue
+		}
+	}
+}
+
 // Start handles everything needed to start actor-system
 func (s *System) Start() {
+	go s.workPush()
+	go s.workSub()
+
+	s.handshake()
 	s.MarkReady()
 
 	select {
 	case <-s.CanStart:
-		s.Publish = s.createPushChannel()
-		s.Receive = s.createRecieveChannel()
 		break
 	case <-s.Done():
+		s.Stop()
 		s.MarkDone()
 		return
 	}
@@ -459,7 +403,9 @@ func (s *System) Start() {
 	go func() {
 		for {
 			select {
-			case message := <-s.Receive:
+			case message := <-s.receive:
+				log.Infof("Received message [%+v]", message)
+
 				parts := strings.SplitN(message, " ", 5)
 				if len(parts) < 4 {
 					log.Warnf("Invalid message received [%+v]", parts)
