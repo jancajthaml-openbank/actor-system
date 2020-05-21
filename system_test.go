@@ -2,10 +2,8 @@ package actorsystem
 
 import (
 	"context"
-	//"fmt"
 	"io/ioutil"
 	"runtime"
-	//"sync"
 	zmq "github.com/pebbe/zmq4"
 	log "github.com/sirupsen/logrus"
 	"testing"
