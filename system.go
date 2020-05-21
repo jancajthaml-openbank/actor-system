@@ -404,8 +404,6 @@ func (s *System) Start() {
 		for {
 			select {
 			case message := <-s.receive:
-				log.Infof("Received message [%+v]", message)
-
 				parts := strings.SplitN(message, " ", 5)
 				if len(parts) < 4 {
 					log.Warnf("Invalid message received [%+v]", parts)
