@@ -240,12 +240,10 @@ func (s *System) RegisterActor(ref *Envelope, initialReaction func(interface{}, 
 		for {
 			select {
 			case <-s.Done():
-				log.Infof("Actor %s Stopping", ref.Name)
 				return
 			case p := <-ref.Backlog:
 				ref.Receive(p)
 			case <-ref.Exit:
-				log.Infof("Actor %s Stopping", ref.Name)
 				return
 			}
 		}
