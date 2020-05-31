@@ -7,12 +7,7 @@ import (
 	zmq "github.com/pebbe/zmq4"
 	log "github.com/sirupsen/logrus"
 	"testing"
-	"time"
 )
-
-func init() {
-	log.SetOutput(ioutil.Discard)
-}
 
 func relay(ctx context.Context, cancel context.CancelFunc) {
 	runtime.LockOSThread()
@@ -74,37 +69,35 @@ func relay(ctx context.Context, cancel context.CancelFunc) {
 	}
 }
 
+func init() {
+	log.SetOutput(ioutil.Discard)
+	masterContext, masterCancel := context.WithCancel(context.Background())
+	go relay(masterContext, masterCancel)
+}
+
 func TestStartStop(t *testing.T) {
 	masterContext, masterCancel := context.WithCancel(context.Background())
 	defer masterCancel()
-	go relay(masterContext, masterCancel)
 
 	system := NewSystem(masterContext, "test", "127.0.0.1")
 
-	t.Log("by daemon support ( Start -> Stop )")
-	{
-		go system.Start()
-		<-system.IsReady
-		system.GreenLight()
-		system.Stop()
-		system.WaitStop()
-	}
+	go system.Start()
+	<-system.IsReady
+	system.GreenLight()
+	system.Stop()
+	system.WaitStop()
 }
 
 func TestStopOnContextCancel(t *testing.T) {
 	masterContext, masterCancel := context.WithCancel(context.Background())
 	defer masterCancel()
-	go relay(masterContext, masterCancel)
 
-	t.Log("stop with cancelation of context")
-	{
-		ctx, cancel := context.WithTimeout(masterContext, time.Second*5)
-		system := NewSystem(ctx, "test", "127.0.0.1")
+	ctx, cancel := context.WithCancel(masterContext)
+	system := NewSystem(ctx, "test", "127.0.0.1")
 
-		go system.Start()
-		<-system.IsReady
-		system.GreenLight()
-		cancel()
-		system.WaitStop()
-	}
+	go system.Start()
+	<-system.IsReady
+	system.GreenLight()
+	cancel()
+	system.WaitStop()
 }
