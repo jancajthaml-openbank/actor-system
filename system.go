@@ -352,10 +352,9 @@ func (s *System) handshake() {
 	var stash []string
 	pingMessage := s.Name + " ]"
 
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(400 * time.Millisecond)
 
 	for {
-		s.publish <- pingMessage
 		select {
 		case <-s.Done():
 			return
@@ -370,7 +369,7 @@ func (s *System) handshake() {
 			}
 			return
 		case <-ticker.C:
-			continue
+			s.publish <- pingMessage
 		}
 	}
 }
