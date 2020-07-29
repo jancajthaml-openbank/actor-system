@@ -2,10 +2,10 @@ package actorsystem
 
 import (
 	"context"
-	"io/ioutil"
-	"runtime"
 	zmq "github.com/pebbe/zmq4"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
+	"runtime"
 	"testing"
 )
 
