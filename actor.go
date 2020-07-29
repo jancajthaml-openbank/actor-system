@@ -98,7 +98,7 @@ func (ref *Envelope) Tell(data interface{}, receiver Coordinates, sender Coordin
 	return
 }
 
-// Become transforms actor behaviour for next message
+// Become transforms actor behavior for next message
 func (ref *Envelope) Become(state interface{}, f func(interface{}, Context)) {
 	if ref == nil {
 		return

@@ -3,31 +3,35 @@
 set -eu
 trap exit INT TERM
 
-TARGET_PACKAGE=""
+################################################################################
 
+SOURCE=""
 while [ $# -gt 0 ] ; do
 key="$1"
-
 case $key in
-
-  --pkg)
-    TARGET_PACKAGE="$2"
-    shift
-    shift
-  ;;
-
-  *)
-    shift
-  ;;
-
+  --source)  SOURCE="$2";  shift; shift; ;;
+  *)                       shift;        ;;
 esac
 done
 
-if [ ! "${TARGET_PACKAGE}" ] ; then
-  (>&2 echo "[error] target package not provided")
+################################################################################
+
+if [ -z "${SOURCE}" ] ; then
+  (>&2 echo "[error] source package not provided")
   exit 1
 fi
 
-cd /go/src/github.com/jancajthaml-openbank/${TARGET_PACKAGE}
+################################################################################
 
-gosec ./...
+lifecycle::go::sec() {
+  local dir="$1"
+  if [ -z ${dir} -o ! -d ${dir} ] ; then
+    return
+  fi
+  cd ${dir} && gosec -exclude=G104,G302 ./...
+}
+
+################################################################################
+
+lifecycle::go::sec \
+  ${SOURCE}
