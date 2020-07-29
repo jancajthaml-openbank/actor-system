@@ -8,6 +8,7 @@ services:
 
   go: &go
     image: docker.io/jancajthaml/go
+		tty: true
     volumes:
       - .:/project
     working_dir: /project
@@ -17,7 +18,6 @@ services:
       - GOPATH=/go
       - COMPOSE_PROJECT_NAME
     entrypoint: ["go"]
-    privileged: true
 
   # -------------------------------------------------------------------------- #
 
