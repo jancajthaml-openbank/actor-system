@@ -22,7 +22,6 @@ import (
 	"time"
 
 	zmq "github.com/pebbe/zmq4"
-	log "github.com/sirupsen/logrus"
 )
 
 // ProcessMessage is a function signature definition for remote message processing
@@ -64,12 +63,10 @@ func NewSystem(parentCtx context.Context, name string, lakeHostname string) Syst
 		actors: &actorsMap{
 			underlying: make(map[string]*Envelope),
 		},
-		host: lakeHostname,
-		onMessage: func(msg string, to Coordinates, from Coordinates) {
-			log.Warnf("[Call OnMessage] actor-system %s received message %+v from: %+v to: %+v", name, msg, from, to)
-		},
-		publish: make(chan string),
-		receive: make(chan string),
+		host:      lakeHostname,
+		onMessage: func(msg string, to Coordinates, from Coordinates) {},
+		publish:   make(chan string),
+		receive:   make(chan string),
 	}
 }
 
@@ -89,7 +86,6 @@ func (s *System) workPush() {
 
 	ctx, err := zmq.NewContext()
 	if err != nil {
-		log.Warnf("Unable to create ZMQ context %+v", err)
 		return
 	}
 
@@ -101,13 +97,11 @@ func (s *System) workPush() {
 pushCreation:
 	channel, err = ctx.NewSocket(zmq.PUSH)
 	if err != nil && err.Error() == "resource temporarily unavailable" {
-		log.Warn("Resources unavailable in connect")
 		select {
 		case <-time.After(100 * time.Millisecond):
 			goto pushCreation
 		}
 	} else if err != nil {
-		log.Warn("Unable to connect ZMQ socket ", err)
 		return
 	}
 	channel.SetConflate(false)
@@ -120,7 +114,6 @@ pushConnection:
 	if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
 		return
 	} else if err != nil {
-		log.Warn("Unable to connect to ZMQ address ", err)
 		select {
 		case <-time.After(100 * time.Millisecond):
 			goto pushConnection
@@ -161,7 +154,6 @@ func (s *System) workSub() {
 
 	ctx, err := zmq.NewContext()
 	if err != nil {
-		log.Warnf("Unable to create ZMQ context %+v", err)
 		return
 	}
 
@@ -173,13 +165,11 @@ func (s *System) workSub() {
 subCreation:
 	channel, err = ctx.NewSocket(zmq.SUB)
 	if err != nil && err.Error() == "resource temporarily unavailable" {
-		log.Warn("Resources unavailable in connect")
 		select {
 		case <-time.After(100 * time.Millisecond):
 			goto subCreation
 		}
 	} else if err != nil {
-		log.Warn("Unable to connect SUB socket ", err)
 		return
 	}
 	channel.SetConflate(false)
@@ -192,7 +182,6 @@ subConnection:
 	if err != nil && (err == zmq.ErrorSocketClosed || err == zmq.ErrorContextClosed || zmq.AsErrno(err) == zmq.ETERM) {
 		return
 	} else if err != nil {
-		log.Warn("Unable to connect to SUB address ", err)
 		select {
 		case <-time.After(100 * time.Millisecond):
 			goto subConnection
@@ -200,7 +189,6 @@ subConnection:
 	}
 
 	if err = channel.SetSubscribe(s.Name + " "); err != nil {
-		log.Warnf("Subscription to %s failed with: %+v", s.Name, err)
 		return
 	}
 	defer channel.SetUnsubscribe(s.Name + " ")
@@ -391,8 +379,6 @@ func (s *System) Start() {
 		return
 	}
 
-	log.Infof("Start actor-system %s", s.Name)
-
 	go func() {
 		for {
 			select {
@@ -423,5 +409,4 @@ func (s *System) Start() {
 	}()
 
 	s.WaitStop()
-	log.Infof("Stop actor-system %s", s.Name)
 }
