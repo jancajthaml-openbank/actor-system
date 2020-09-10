@@ -3,7 +3,6 @@ package actorsystem
 import (
 	"context"
 	zmq "github.com/pebbe/zmq4"
-	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"runtime"
 	"testing"
@@ -70,7 +69,6 @@ func relay(ctx context.Context, cancel context.CancelFunc) {
 }
 
 func init() {
-	log.SetOutput(ioutil.Discard)
 	masterContext, masterCancel := context.WithCancel(context.Background())
 	go relay(masterContext, masterCancel)
 }
