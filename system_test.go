@@ -2,10 +2,10 @@ package actorsystem
 
 import (
 	"context"
-	zmq "github.com/pebbe/zmq4"
-	"io/ioutil"
 	"runtime"
 	"testing"
+
+	zmq "github.com/pebbe/zmq4"
 )
 
 func relay(ctx context.Context, cancel context.CancelFunc) {
