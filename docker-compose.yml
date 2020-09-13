@@ -17,30 +17,33 @@ services:
       - GOARCH
       - GOPATH=/go
       - COMPOSE_PROJECT_NAME
-    entrypoint: ["go"]
 
   # -------------------------------------------------------------------------- #
 
   sync:
     <<: *go
-    entrypoint: ["/project/dev/lifecycle/sync"]
+    entrypoint:
+      - /project/dev/lifecycle/sync
 
   # -------------------------------------------------------------------------- #
 
   lint:
     <<: *go
-    entrypoint: ["/project/dev/lifecycle/lint"]
+    entrypoint:
+      - /project/dev/lifecycle/lint
 
   # -------------------------------------------------------------------------- #
 
   sec:
     <<: *go
-    entrypoint: ["/project/dev/lifecycle/sec"]
+    entrypoint:
+      - /project/dev/lifecycle/sec
 
   # -------------------------------------------------------------------------- #
 
   test:
     <<: *go
-    entrypoint: ["/project/dev/lifecycle/test"]
+    entrypoint:
+      - /project/dev/lifecycle/test
 
 # ---------------------------------------------------------------------------- #

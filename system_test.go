@@ -77,7 +77,7 @@ func TestStartStop(t *testing.T) {
 	masterContext, masterCancel := context.WithCancel(context.Background())
 	defer masterCancel()
 
-	system := NewSystem(masterContext, "test", "127.0.0.1")
+	system := New(masterContext, "test", "127.0.0.1")
 
 	go system.Start()
 	<-system.IsReady
@@ -91,7 +91,7 @@ func TestStopOnContextCancel(t *testing.T) {
 	defer masterCancel()
 
 	ctx, cancel := context.WithCancel(masterContext)
-	system := NewSystem(ctx, "test", "127.0.0.1")
+	system := New(ctx, "test", "127.0.0.1")
 
 	go system.Start()
 	<-system.IsReady
