@@ -21,11 +21,11 @@ import (
 
 type actorsMap struct {
 	sync.RWMutex
-	underlying map[string]*Envelope
+	underlying map[string]*Actor
 }
 
 // Load works same as get from map
-func (rm *actorsMap) Load(key string) (value *Envelope, ok bool) {
+func (rm *actorsMap) Load(key string) (value *Actor, ok bool) {
 	rm.RLock()
 	defer rm.RUnlock()
 	result, ok := rm.underlying[key]
@@ -40,7 +40,7 @@ func (rm *actorsMap) Delete(key string) {
 }
 
 // Store works same as store to map
-func (rm *actorsMap) Store(key string, value *Envelope) {
+func (rm *actorsMap) Store(key string, value *Actor) {
 	rm.Lock()
 	defer rm.Unlock()
 	rm.underlying[key] = value
@@ -59,13 +59,13 @@ func (ref *Coordinates) String() string {
 // Context represents actor message envelope
 type Context struct {
 	Data     interface{}
-	Self     *Envelope
+	Self     *Actor
 	Receiver Coordinates
 	Sender   Coordinates
 }
 
-// Envelope represents single actor
-type Envelope struct {
+// Actor represents single actor
+type Actor struct {
 	Name    string
 	State   interface{}
 	receive func(interface{}, Context)
@@ -73,9 +73,9 @@ type Envelope struct {
 	Exit    chan interface{}
 }
 
-// NewEnvelope returns new actor instance
-func NewEnvelope(name string, state interface{}) *Envelope {
-	return &Envelope{
+// NewActor returns new actor instance
+func NewActor(name string, state interface{}) *Actor {
+	return &Actor{
 		Name:    name,
 		State:   state,
 		Backlog: make(chan Context, 64),
@@ -84,7 +84,7 @@ func NewEnvelope(name string, state interface{}) *Envelope {
 }
 
 // Tell queues message to actor
-func (ref *Envelope) Tell(data interface{}, receiver Coordinates, sender Coordinates) (err error) {
+func (ref *Actor) Tell(data interface{}, receiver Coordinates, sender Coordinates) (err error) {
 	if ref == nil {
 		err = fmt.Errorf("actor reference %v not found", ref)
 		return
@@ -99,7 +99,7 @@ func (ref *Envelope) Tell(data interface{}, receiver Coordinates, sender Coordin
 }
 
 // Become transforms actor behavior for next message
-func (ref *Envelope) Become(state interface{}, f func(interface{}, Context)) {
+func (ref *Actor) Become(state interface{}, f func(interface{}, Context)) {
 	if ref == nil {
 		return
 	}
@@ -108,7 +108,7 @@ func (ref *Envelope) Become(state interface{}, f func(interface{}, Context)) {
 	return
 }
 
-func (ref *Envelope) String() string {
+func (ref *Actor) String() string {
 	if ref == nil {
 		return "<Deadletter>"
 	}
@@ -116,7 +116,7 @@ func (ref *Envelope) String() string {
 }
 
 // React change become function
-func (ref *Envelope) React(f func(interface{}, Context)) {
+func (ref *Actor) React(f func(interface{}, Context)) {
 	if ref == nil {
 		return
 	}
@@ -125,7 +125,7 @@ func (ref *Envelope) React(f func(interface{}, Context)) {
 }
 
 // Receive dequeues message to actor
-func (ref *Envelope) Receive(msg Context) {
+func (ref *Actor) Receive(msg Context) {
 	if ref.receive == nil {
 		return
 	}

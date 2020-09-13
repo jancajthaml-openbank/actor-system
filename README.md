@@ -33,7 +33,7 @@ func NewActorSystem() ActorSystem {
   lakeEndpoint := "127.0.0.1"
 
   return ActorSystem{
-    System: system.NewSupport(ctx, region, lakeEndpoint),
+    System: system.New(ctx, region, lakeEndpoint),
   }
 }
 
@@ -90,8 +90,8 @@ func EchoActor(s ActorSystemSupport) func(State, Context) {
 func (s ActorSystemSupport) ProcessLocalMessage(msg interface{}, to system.Coordinates, from system.Coordinates) {
   ref, err := s.ActorOf(to)
   if err != nil {
-    ref = actor.NewEnvelope(to)
-    err = s.RegisterActor(envelope, EchoActor(s))
+    ref = actor.NewActor(to)
+    err = s.RegisterActor(ref, EchoActor(s))
     if err != nil {
       log.Warnf("Unable to register Actor [%s local]", to)
       return

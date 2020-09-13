@@ -42,8 +42,8 @@ type System struct {
 	receive   chan string
 }
 
-// NewSystem constructor
-func NewSystem(parentCtx context.Context, name string, lakeHostname string) System {
+// New returns new actor system fascade
+func New(parentCtx context.Context, name string, lakeHostname string) System {
 	ctx, cancel := context.WithCancel(parentCtx)
 
 	if lakeHostname == "" {
@@ -61,7 +61,7 @@ func NewSystem(parentCtx context.Context, name string, lakeHostname string) Syst
 		IsReady:  make(chan interface{}),
 		CanStart: make(chan interface{}),
 		actors: &actorsMap{
-			underlying: make(map[string]*Envelope),
+			underlying: make(map[string]*Actor),
 		},
 		host:      lakeHostname,
 		onMessage: func(msg string, to Coordinates, from Coordinates) {},
@@ -208,12 +208,15 @@ eos:
 
 // RegisterOnMessage register callback on message receive
 func (s *System) RegisterOnMessage(cb ProcessMessage) {
+	if s == nil {
+		return
+	}
 	s.onMessage = cb
 }
 
 // RegisterActor register new actor into actor system
-func (s *System) RegisterActor(ref *Envelope, initialReaction func(interface{}, Context)) (err error) {
-	if ref == nil {
+func (s *System) RegisterActor(ref *Actor, initialReaction func(interface{}, Context)) (err error) {
+	if s == nil || ref == nil {
 		return
 	}
 	_, exists := s.actors.Load(ref.Name)
@@ -241,7 +244,10 @@ func (s *System) RegisterActor(ref *Envelope, initialReaction func(interface{}, 
 }
 
 // ActorOf return actor reference by name
-func (s *System) ActorOf(name string) (*Envelope, error) {
+func (s *System) ActorOf(name string) (*Actor, error) {
+	if s == nil {
+		return nil, fmt.Errorf("cannot call method on nil reference")
+	}
 	ref, exists := s.actors.Load(name)
 	if !exists {
 		return nil, fmt.Errorf("actor %v not registered", name)
@@ -251,6 +257,9 @@ func (s *System) ActorOf(name string) (*Envelope, error) {
 
 // UnregisterActor stops actor and removes it from actor system
 func (s *System) UnregisterActor(name string) {
+	if s == nil {
+		return
+	}
 	ref, err := s.ActorOf(name)
 	if err != nil {
 		return
@@ -261,6 +270,9 @@ func (s *System) UnregisterActor(name string) {
 
 // SendMessage send message to to local of remote actor system
 func (s *System) SendMessage(msg string, to Coordinates, from Coordinates) {
+	if s == nil {
+		return
+	}
 	if to.Region == from.Region {
 		s.onMessage(msg, to, from)
 	} else {
@@ -300,6 +312,9 @@ func (s *System) WaitReady(deadline time.Duration) (err error) {
 
 // WaitStop cancels context
 func (s *System) WaitStop() {
+	if s == nil {
+		return
+	}
 	<-s.done
 }
 
@@ -313,30 +328,50 @@ func (s *System) GreenLight() {
 
 // MarkDone signals daemon is finished
 func (s *System) MarkDone() {
+	if s == nil {
+		return
+	}
 	close(s.done)
 }
 
 // IsCanceled returns if daemon is done
 func (s *System) IsCanceled() bool {
+	if s == nil {
+		return false
+	}
 	return s.ctx.Err() != nil
 }
 
 // MarkReady signals daemon is ready
 func (s *System) MarkReady() {
+	if s == nil {
+		return
+	}
 	s.IsReady <- nil
 }
 
 // Done cancel channel
 func (s *System) Done() <-chan struct{} {
+	if s == nil {
+		stub := make(chan struct{})
+		close(stub)
+		return stub
+	}
 	return s.ctx.Done()
 }
 
 // Stop cancels context
 func (s *System) Stop() {
+	if s == nil {
+		return
+	}
 	s.cancel()
 }
 
 func (s *System) handshake() {
+	if s == nil {
+		return
+	}
 	var stash []string
 	pingMessage := s.Name + " ]"
 
@@ -364,6 +399,9 @@ func (s *System) handshake() {
 
 // Start handles everything needed to start actor-system
 func (s *System) Start() {
+	if s == nil {
+		return
+	}
 	go s.workPush()
 	go s.workSub()
 
