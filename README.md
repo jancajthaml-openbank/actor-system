@@ -1,6 +1,7 @@
 # actor-system
 
 ![Health Check](https://github.com/jancajthaml-openbank/actor-system/workflows/Health%20Check/badge.svg)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fjancajthaml-openbank%2Factor-system.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fjancajthaml-openbank%2Factor-system?ref=badge_shield)
 
 No nonsense, easiblity extensible actor system support without need or service discovery and actor tracking.
 
@@ -110,6 +111,9 @@ ActorSystemSupport has methods `Start` for proper system start an `Stop` for gra
 ## License
 
 Licensed under Apache 2.0 see [LICENSE.md](https://github.com/jancajthaml-openbank/lake-client/blob/master/LICENSE.md) for details
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fjancajthaml-openbank%2Factor-system.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fjancajthaml-openbank%2Factor-system?ref=badge_large)
 
 ## Contributing
 
