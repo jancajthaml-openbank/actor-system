@@ -43,16 +43,14 @@ type System struct {
 }
 
 // New returns new actor system fascade
-func New(parentCtx context.Context, name string, lakeHostname string) System {
-	ctx, cancel := context.WithCancel(parentCtx)
-
+func New(parentCtx context.Context, name string, lakeHostname string) (System, error) {
 	if lakeHostname == "" {
-		panic(fmt.Errorf("invalid lake hostname").Error())
+		return System{}, fmt.Errorf("invalid lake hostname")
 	}
 	if name == "" || name == "[" {
-		panic(fmt.Errorf("invalid system name").Error())
+		return System{}, fmt.Errorf("invalid system name")
 	}
-
+	ctx, cancel := context.WithCancel(parentCtx)
 	return System{
 		Name:     name,
 		ctx:      ctx,
@@ -67,7 +65,7 @@ func New(parentCtx context.Context, name string, lakeHostname string) System {
 		onMessage: func(msg string, to Coordinates, from Coordinates) {},
 		publish:   make(chan string),
 		receive:   make(chan string),
-	}
+	}, nil
 }
 
 func (s *System) workPush() {
