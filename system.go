@@ -28,7 +28,6 @@ type System struct {
 	Name      string
 	actors    *actorsMap
 	onMessage ProcessMessage
-	host      string
 	push      Pusher
 	sub       Subber
 	ctx       context.Context
@@ -51,7 +50,6 @@ func New(name string, lakeHostname string) (System, error) {
 		actors: &actorsMap{
 			underlying: make(map[string]*Actor),
 		},
-		host:      lakeHostname,
 		onMessage: func(msg string, to Coordinates, from Coordinates) {},
 		push:      NewPusher(lakeHostname),
 		sub:       NewSubber(lakeHostname, name),
@@ -142,16 +140,22 @@ func (s *System) Start() {
 	}
 
 	go func() {
-		s.push.Start()
-		s.cancel()
-	}()
-	defer s.push.Stop()
-
-	go func() {
-		s.sub.Start()
+		err := s.sub.Start()
+		if err != nil {
+			fmt.Printf("SUB routine errored %+v", err.Error())
+		}
 		s.cancel()
 	}()
 	defer s.sub.Stop()
+
+	go func() {
+		err := s.push.Start()
+		if err != nil {
+			fmt.Printf("SUB routine errored %+v", err.Error())
+		}
+		s.cancel()
+	}()
+	defer s.push.Stop()
 
 	defer func() {
 		for actorName := range s.actors.underlying {

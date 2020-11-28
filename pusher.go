@@ -17,7 +17,6 @@ package actorsystem
 import (
   "fmt"
   "runtime"
-  "time"
 
   "github.com/pebbe/zmq4"
 )
@@ -50,7 +49,7 @@ func (s *Pusher) Stop() {
   s.ctx = nil
 }
 
-func (s *Pusher) Start() {
+func (s *Pusher) Start() error {
   var chunk   string
   var err     error
 
@@ -62,17 +61,16 @@ func (s *Pusher) Start() {
 
   s.ctx, err = zmq4.NewContext()
   if err != nil {
-    return
+    return err
   }
 
   for {
     s.socket, err = s.ctx.NewSocket(zmq4.PUSH)
     if err == nil {
       break
-    } else if err.Error() == "resource temporarily unavailable" {
-      continue
+    } else if err.Error() != "resource temporarily unavailable" {
+      return err
     }
-    time.Sleep(10 * time.Millisecond)
   }
 
   s.socket.SetConflate(false)
@@ -85,9 +83,8 @@ func (s *Pusher) Start() {
     if err == nil {
       break
     } else if err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket {
-      return
+      return err
     }
-    time.Sleep(10 * time.Millisecond)
   }
 
 loop:
@@ -104,5 +101,5 @@ loop:
   goto loop
 
 eos:
-  return
+  return nil
 }
