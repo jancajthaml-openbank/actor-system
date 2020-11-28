@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // ProcessMessage is a function signature definition for remote message processing
@@ -41,7 +40,7 @@ func New(name string, lakeHostname string) (System, error) {
 	if lakeHostname == "" {
 		return System{}, fmt.Errorf("invalid lake hostname")
 	}
-	if name == "" || name == "[" {
+	if name == "" {
 		return System{}, fmt.Errorf("invalid system name")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -128,35 +127,6 @@ func (s *System) SendMessage(msg string, to Coordinates, from Coordinates) {
 	}
 }
 
-func (s *System) handshake() {
-	if s == nil {
-		return
-	}
-	var stash []string
-	pingMessage := s.Name + " ]"
-
-	ticker := time.NewTicker(400 * time.Millisecond)
-
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case data := <-s.sub.Data:
-			if data != pingMessage {
-				stash = append(stash, data)
-				continue
-			}
-			ticker.Stop()
-			for _, data := range stash {
-				s.sub.Data <- data
-			}
-			return
-		case <-ticker.C:
-			s.push.Data <- pingMessage
-		}
-	}
-}
-
 func (s *System) Stop() {
 	if s == nil {
 		return
@@ -182,8 +152,6 @@ func (s *System) Start() {
 		s.cancel()
 	}()
 	defer s.sub.Stop()
-
-	s.handshake()
 
 	defer func() {
 		for actorName := range s.actors.underlying {

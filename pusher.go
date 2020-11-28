@@ -65,30 +65,29 @@ func (s *Pusher) Start() {
     return
   }
 
-pushCreation:
-  s.socket, err = s.ctx.NewSocket(zmq4.PUSH)
-  if err != nil && err.Error() == "resource temporarily unavailable" {
-    select {
-    case <-time.After(100 * time.Millisecond):
-      goto pushCreation
+  for {
+    s.socket, err = s.ctx.NewSocket(zmq4.PUSH)
+    if err == nil {
+      break
+    } else if err.Error() == "resource temporarily unavailable" {
+      continue
     }
-  } else if err != nil {
-    return
+    time.Sleep(10 * time.Millisecond)
   }
+
   s.socket.SetConflate(false)
   s.socket.SetImmediate(true)
   s.socket.SetSndhwm(0)
   s.socket.SetLinger(0)
 
-pushConnection:
-  err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5562))
-  if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket) {
-    return
-  } else if err != nil {
-    select {
-    case <-time.After(100 * time.Millisecond):
-      goto pushConnection
+  for {
+    err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5562))
+    if err == nil {
+      break
+    } else if err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket {
+      return
     }
+    time.Sleep(10 * time.Millisecond)
   }
 
 loop:
