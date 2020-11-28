@@ -140,19 +140,13 @@ func (s *System) Start() {
 	}
 
 	go func() {
-		err := s.sub.Start()
-		if err != nil {
-			fmt.Printf("SUB routine errored %+v", err.Error())
-		}
+		s.sub.Start()
 		s.cancel()
 	}()
 	defer s.sub.Stop()
 
 	go func() {
-		err := s.push.Start()
-		if err != nil {
-			fmt.Printf("SUB routine errored %+v", err.Error())
-		}
+		s.push.Start()
 		s.cancel()
 	}()
 	defer s.push.Stop()
@@ -169,7 +163,7 @@ func (s *System) Start() {
 			return
 		case message := <-s.sub.Data:
 			parts := strings.SplitN(message, " ", 5)
-			if len(parts) < 4 {
+			if len(parts) < 5 {
 				continue
 			}
 			s.onMessage(
