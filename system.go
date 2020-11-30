@@ -17,7 +17,6 @@ package actorsystem
 import (
 	"context"
 	"fmt"
-	"strings"
 )
 
 // ProcessMessage is a function signature definition for remote message processing
@@ -125,6 +124,7 @@ func (s *System) SendMessage(msg string, to Coordinates, from Coordinates) {
 	}
 }
 
+// Stop terminates work
 func (s *System) Stop() {
 	if s == nil {
 		return
@@ -133,7 +133,60 @@ func (s *System) Stop() {
 	<-s.ctx.Done()
 }
 
-// Start handles everything needed to start actor-system
+func (s *System) exhaustMailbox() {
+	var message string
+	var start int
+	var end int
+	var parts = make([]string, 5)
+	var idx int
+	var i int
+
+loop:
+	select {
+	case <-s.ctx.Done():
+		goto eos
+	case message = <-s.sub.Data:
+		start = 0
+		end = len(message)
+		idx = 0
+		i = 0
+
+		for i < end && idx < 4 {
+			if message[i] == 32 {
+				if !(start == i && message[start] == 32) {
+					parts[idx] = message[start:i]
+					idx++
+				}
+				start = i + 1
+			}
+			i++
+		}
+		if idx < 5 && message[start] != 32 && len(message[start:]) > 0 {
+			parts[idx] = message[start:]
+			idx++
+		}
+		if idx != 5 {
+			goto loop
+		}
+
+		s.onMessage(
+			parts[4],
+			Coordinates{
+				Name:   parts[2],
+				Region: parts[0],
+			},
+			Coordinates{
+				Name:   parts[3],
+				Region: parts[1],
+			},
+		)
+	}
+	goto loop
+eos:
+	return
+}
+
+// Start spins PUSH and SUB workers
 func (s *System) Start() {
 	if s == nil {
 		return
@@ -157,26 +210,5 @@ func (s *System) Start() {
 		}
 	}()
 
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		case message := <-s.sub.Data:
-			parts := strings.SplitN(message, " ", 5)
-			if len(parts) < 5 {
-				continue
-			}
-			s.onMessage(
-				parts[4],
-				Coordinates{
-					Name:   parts[2],
-					Region: parts[0],
-				},
-				Coordinates{
-					Name:   parts[3],
-					Region: parts[1],
-				},
-			)
-		}
-	}
+	s.exhaustMailbox()
 }
