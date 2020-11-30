@@ -15,92 +15,115 @@
 package actorsystem
 
 import (
-  "fmt"
-  "runtime"
-  "github.com/pebbe/zmq4"
+	"fmt"
+	"github.com/pebbe/zmq4"
+	"runtime"
 )
 
+// Subber holds SUB socket wrapper
 type Subber struct {
-  host   string
-  topic  string
-  ctx    *zmq4.Context
-  Data   chan string
-  socket *zmq4.Socket
+	host        string
+	topic       string
+	ctx         *zmq4.Context
+	Data        chan string
+	socket      *zmq4.Socket
+	killedOrder chan interface{}
+	deadConfirm chan interface{}
 }
 
+// NewSubber returns new SUB worker connected to host
 func NewSubber(host string, topic string) Subber {
-  return Subber{
-    host:  host,
-    topic: topic,
-    Data:  make(chan string),
-  }
+	return Subber{
+		host:        host,
+		topic:       topic,
+		Data:        make(chan string),
+		killedOrder: make(chan interface{}),
+		deadConfirm: nil,
+	}
 }
 
+// Stop closes socket and waits for zmq to terminate
 func (s *Subber) Stop() {
-  if s == nil {
-    return
-  }
-  if s.socket != nil {
-    s.socket.Close()
-  }
-  if s.ctx != nil {
-    for s.ctx.Term() != nil {}
-  }
-  s.socket = nil
-  s.ctx = nil
+	if s == nil {
+		return
+	}
+	if s.deadConfirm != nil {
+		close(s.killedOrder)
+		<-s.deadConfirm
+	}
+	if s.socket != nil {
+		s.socket.Close()
+	}
+	s.socket = nil
+	s.ctx = nil
 }
 
+// Start creates SUB socket and relays all data from it to Data channel
 func (s *Subber) Start() error {
-  var chunk   string
-  var err     error
+	if s == nil {
+		return fmt.Errorf("nil pointer")
+	}
 
-  runtime.LockOSThread()
-  defer func() {
-    recover()
-    runtime.UnlockOSThread()
-  }()
+	var chunk string
+	var err error
 
-  s.ctx, err = zmq4.NewContext()
-  if err != nil {
-    return err
-  }
+	runtime.LockOSThread()
+	defer func() {
+		recover()
+		runtime.UnlockOSThread()
+	}()
 
-  for {
-    s.socket, err = s.ctx.NewSocket(zmq4.SUB)
-    if err == nil {
-      break
-    } else if err.Error() != "resource temporarily unavailable" {
-      return err
-    }
-  }
+	s.ctx, err = zmq4.NewContext()
+	if err != nil {
+		return err
+	}
+	s.ctx.SetRetryAfterEINTR(false)
 
-  s.socket.SetConflate(false)
-  s.socket.SetImmediate(true)
-  s.socket.SetRcvhwm(0)
-  s.socket.SetLinger(0)
+	for {
+		s.socket, err = s.ctx.NewSocket(zmq4.SUB)
+		if err == nil {
+			break
+		} else if err.Error() != "resource temporarily unavailable" {
+			return err
+		}
+	}
 
-  for {
-    err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
-    if err == nil {
-      break
-    } else if err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket {
-      return err
-    }
-  }
+	s.socket.SetConflate(false)
+	s.socket.SetImmediate(true)
+	s.socket.SetRcvhwm(0)
+	s.socket.SetLinger(0)
 
-  if err = s.socket.SetSubscribe(s.topic + " "); err != nil {
-    return err
-  }
-  defer s.socket.SetUnsubscribe(s.topic + " ")
+	s.deadConfirm = make(chan interface{})
+	defer close(s.deadConfirm)
+
+	for {
+		err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
+		if err == nil {
+			break
+		} else if err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket {
+			return err
+		}
+	}
+
+	if err = s.socket.SetSubscribe(s.topic + " "); err != nil {
+		return err
+	}
+	defer s.socket.SetUnsubscribe(s.topic + " ")
 
 loop:
-  chunk, err = s.socket.Recv(0)
-  if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket) {
-    goto eos
-  }
-  s.Data <- chunk
-  goto loop
+	select {
+
+	case <-s.killedOrder:
+		goto eos
+	default:
+		chunk, err = s.socket.Recv(0)
+		if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket) {
+			goto eos
+		}
+		s.Data <- chunk
+		goto loop
+	}
 
 eos:
-  return nil
+	return nil
 }

@@ -15,91 +15,107 @@
 package actorsystem
 
 import (
-  "fmt"
-  "runtime"
+	"fmt"
+	"runtime"
 
-  "github.com/pebbe/zmq4"
+	"github.com/pebbe/zmq4"
 )
 
+// Pusher holds PUSH socket wrapper
 type Pusher struct {
-  host   string
-  ctx    *zmq4.Context
-  Data   chan string
-  socket *zmq4.Socket
+	host        string
+	ctx         *zmq4.Context
+	Data        chan string
+	socket      *zmq4.Socket
+	killedOrder chan interface{}
+	deadConfirm chan interface{}
 }
 
+// NewPusher returns new PUSH worker connected to host
 func NewPusher(host string) Pusher {
-  return Pusher{
-    host: host,
-    Data: make(chan string),
-  }
+	return Pusher{
+		host:        host,
+		Data:        make(chan string),
+		killedOrder: make(chan interface{}),
+		deadConfirm: nil,
+	}
 }
 
+// Stop closes socket and waits for zmq to terminate
 func (s *Pusher) Stop() {
-  if s == nil {
-    return
-  }
-  if s.socket != nil {
-    s.socket.Close()
-  }
-  if s.ctx != nil {
-    for s.ctx.Term() != nil {}
-  }
-  s.socket = nil
-  s.ctx = nil
+	if s == nil {
+		return
+	}
+	if s.deadConfirm != nil {
+		close(s.killedOrder)
+		<-s.deadConfirm
+	}
+	if s.socket != nil {
+		s.socket.Close()
+	}
+	s.socket = nil
+	s.ctx = nil
 }
 
+// Start creates PUSH socket and relays all Data chan to that socket
 func (s *Pusher) Start() error {
-  var chunk   string
-  var err     error
+	if s == nil {
+		return fmt.Errorf("nil pointer")
+	}
 
-  runtime.LockOSThread()
-  defer func() {
-    recover()
-    runtime.UnlockOSThread()
-  }()
+	var chunk string
+	var err error
 
-  s.ctx, err = zmq4.NewContext()
-  if err != nil {
-    return err
-  }
+	runtime.LockOSThread()
+	defer func() {
+		recover()
+		runtime.UnlockOSThread()
+	}()
 
-  for {
-    s.socket, err = s.ctx.NewSocket(zmq4.PUSH)
-    if err == nil {
-      break
-    } else if err.Error() != "resource temporarily unavailable" {
-      return err
-    }
-  }
+	s.ctx, err = zmq4.NewContext()
+	if err != nil {
+		return err
+	}
+	s.ctx.SetRetryAfterEINTR(false)
 
-  s.socket.SetConflate(false)
-  s.socket.SetImmediate(true)
-  s.socket.SetSndhwm(0)
-  s.socket.SetLinger(0)
+	for {
+		s.socket, err = s.ctx.NewSocket(zmq4.PUSH)
+		if err == nil {
+			break
+		} else if err.Error() != "resource temporarily unavailable" {
+			return err
+		}
+	}
 
-  for {
-    err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5562))
-    if err == nil {
-      break
-    } else if err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket {
-      return err
-    }
-  }
+	s.socket.SetConflate(false)
+	s.socket.SetImmediate(true)
+	s.socket.SetSndhwm(0)
+	s.socket.SetLinger(0)
+
+	s.deadConfirm = make(chan interface{})
+	defer close(s.deadConfirm)
+
+	for {
+		err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5562))
+		if err == nil {
+			break
+		} else if err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket {
+			return err
+		}
+	}
 
 loop:
-  select {
-  case chunk = <-s.Data:
-    if chunk == "" {
-      goto loop
-    }
-    _, err = s.socket.Send(chunk, 0)
-    if err != nil {
-      goto eos
-    }
-  }
-  goto loop
+	select {
+	case chunk = <-s.Data:
+		_, err = s.socket.Send(chunk, 0)
+		if err != nil {
+			goto eos
+		}
+	case <-s.killedOrder:
+		goto eos
+	}
+	goto loop
 
 eos:
-  return nil
+	return nil
 }
