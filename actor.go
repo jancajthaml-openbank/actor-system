@@ -33,10 +33,15 @@ func (rm *actorsMap) Load(key string) (value *Actor, ok bool) {
 }
 
 // Delete works same as delete from map
-func (rm *actorsMap) Delete(key string) {
+func (rm *actorsMap) Delete(key string) *Actor {
 	rm.Lock()
 	defer rm.Unlock()
+	ref, exists := s.actors.Load(name)
+	if !exists {
+		return nil
+	}
 	delete(rm.underlying, key)
+	return ref
 }
 
 // Store works same as store to map
