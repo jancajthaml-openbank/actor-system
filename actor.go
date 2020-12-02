@@ -36,12 +36,12 @@ func (rm *actorsMap) Load(key string) (value *Actor, ok bool) {
 func (rm *actorsMap) Delete(key string) *Actor {
 	rm.Lock()
 	defer rm.Unlock()
-	ref, exists := s.actors.Load(name)
-	if !exists {
+	result, ok := rm.underlying[key]
+	if !ok {
 		return nil
 	}
 	delete(rm.underlying, key)
-	return ref
+	return result
 }
 
 // Store works same as store to map
@@ -83,7 +83,7 @@ func NewActor(name string, state interface{}) *Actor {
 	return &Actor{
 		Name:    name,
 		State:   state,
-		Backlog: make(chan Context, 64),
+		Backlog: make(chan Context, 128),
 		Exit:    make(chan interface{}),
 	}
 }
