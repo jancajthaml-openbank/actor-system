@@ -148,6 +148,9 @@ loop:
 	case message = <-s.sub.Data:
 		start = 0
 		end = len(message)
+		if end == 0 {
+			goto loop
+		}
 		idx = 0
 		i = 0
 
