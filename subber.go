@@ -24,21 +24,16 @@ import (
 type Subber struct {
 	host        string
 	topic       string
-	ctx         *zmq4.Context
 	Data        chan string
 	socket      *zmq4.Socket
-	killedOrder chan interface{}
-	deadConfirm chan interface{}
 }
 
 // NewSubber returns new SUB worker connected to host
 func NewSubber(host string, topic string) Subber {
 	return Subber{
-		host:        host,
-		topic:       topic,
-		Data:        make(chan string),
-		killedOrder: make(chan interface{}),
-		deadConfirm: nil,
+		host:  host,
+		topic: topic,
+		Data:  make(chan string),
 	}
 }
 
@@ -47,15 +42,8 @@ func (s *Subber) Stop() {
 	if s == nil {
 		return
 	}
-	if s.deadConfirm != nil {
-		close(s.killedOrder)
-		<-s.deadConfirm
-	}
-	if s.socket != nil {
-		s.socket.Close()
-	}
-	s.socket = nil
-	s.ctx = nil
+	s.socket.Close()
+	s.socket.Disconnect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
 }
 
 // Start creates SUB socket and relays all data from it to Data channel
@@ -73,28 +61,26 @@ func (s *Subber) Start() error {
 		runtime.UnlockOSThread()
 	}()
 
-	s.ctx, err = zmq4.NewContext()
+	ctx, err := zmq4.NewContext()
 	if err != nil {
 		return err
 	}
-	s.ctx.SetRetryAfterEINTR(false)
+	ctx.SetRetryAfterEINTR(false)
 
 	for {
-		s.socket, err = s.ctx.NewSocket(zmq4.SUB)
+		s.socket, err = ctx.NewSocket(zmq4.SUB)
 		if err == nil {
 			break
 		} else if err.Error() != "resource temporarily unavailable" {
 			return err
 		}
 	}
+	defer ctx.Term()
 
 	s.socket.SetConflate(false)
 	s.socket.SetImmediate(true)
 	s.socket.SetRcvhwm(0)
 	s.socket.SetLinger(0)
-
-	s.deadConfirm = make(chan interface{})
-	defer close(s.deadConfirm)
 
 	for {
 		err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
@@ -111,18 +97,13 @@ func (s *Subber) Start() error {
 	defer s.socket.SetUnsubscribe(s.topic + " ")
 
 loop:
-	select {
-
-	case <-s.killedOrder:
+	chunk, err = s.socket.Recv(0)
+	if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket) {
 		goto eos
-	default:
-		chunk, err = s.socket.Recv(0)
-		if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket) {
-			goto eos
-		}
-		s.Data <- chunk
-		goto loop
 	}
+	fmt.Printf("Err %+v\n", err)
+	s.Data <- chunk
+	goto loop
 
 eos:
 	return nil

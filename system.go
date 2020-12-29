@@ -16,6 +16,7 @@ package actorsystem
 
 import (
 	"context"
+	"sync"
 	"fmt"
 )
 
@@ -197,23 +198,29 @@ func (s *System) Start() {
 		return
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(2)
+
 	go func() {
+		defer wg.Done()
 		s.sub.Start()
 		s.cancel()
 	}()
-	defer s.sub.Stop()
 
 	go func() {
+		defer wg.Done()
 		s.push.Start()
 		s.cancel()
 	}()
-	defer s.push.Stop()
-
-	defer func() {
-		for actorName := range s.actors.underlying {
-			s.UnregisterActor(actorName)
-		}
-	}()
 
 	s.exhaustMailbox()
+
+	for actorName := range s.actors.underlying {
+		s.UnregisterActor(actorName)
+	}
+
+	go s.sub.Stop()
+	go s.push.Stop()
+
+	wg.Wait()
 }
