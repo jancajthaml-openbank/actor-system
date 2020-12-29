@@ -75,7 +75,6 @@ func (s *Subber) Start() error {
 			return err
 		}
 	}
-	defer ctx.Term()
 
 	s.socket.SetConflate(false)
 	s.socket.SetImmediate(true)
@@ -101,7 +100,6 @@ loop:
 	if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket) {
 		goto eos
 	}
-	fmt.Printf("Err %+v\n", err)
 	s.Data <- chunk
 	goto loop
 
