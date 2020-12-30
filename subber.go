@@ -18,13 +18,14 @@ import (
 	"fmt"
 	"github.com/pebbe/zmq4"
 	"runtime"
+	"time"
 )
 
 // Subber holds SUB socket wrapper
 type Subber struct {
-	host   string
-	topic  string
-	Data   chan string
+	host        string
+	topic       string
+	Data        chan string
 	ctx         *zmq4.Context
 	socket      *zmq4.Socket
 	killedOrder chan interface{}
@@ -34,9 +35,9 @@ type Subber struct {
 // NewSubber returns new SUB worker connected to host
 func NewSubber(host string, topic string) Subber {
 	return Subber{
-		host:  host,
-		topic: topic,
-		Data:  make(chan string, 2),
+		host:        host,
+		topic:       topic,
+		Data:        make(chan string, 2),
 		killedOrder: make(chan interface{}),
 		deadConfirm: nil,
 	}
@@ -48,8 +49,13 @@ func (s *Subber) Stop() {
 		return
 	}
 	if s.deadConfirm != nil {
+		select {
+		case <-time.After(time.Second):
+			break
+		case <-s.deadConfirm:
+			break
+		}
 		close(s.killedOrder)
-		<-s.deadConfirm
 	}
 	if s.socket != nil {
 		s.socket.Close()

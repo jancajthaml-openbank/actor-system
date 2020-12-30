@@ -1,8 +1,8 @@
 .git
 .gitignore
-vendor
-dev
+.dev
 .editorconfig
 .env
 .depignore
-docker-compose.yml
+vendor
+reports
