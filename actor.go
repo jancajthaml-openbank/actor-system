@@ -33,10 +33,15 @@ func (rm *actorsMap) Load(key string) (value *Actor, ok bool) {
 }
 
 // Delete works same as delete from map
-func (rm *actorsMap) Delete(key string) {
+func (rm *actorsMap) Delete(key string) *Actor {
 	rm.Lock()
 	defer rm.Unlock()
+	result, ok := rm.underlying[key]
+	if !ok {
+		return nil
+	}
 	delete(rm.underlying, key)
+	return result
 }
 
 // Store works same as store to map
@@ -78,7 +83,7 @@ func NewActor(name string, state interface{}) *Actor {
 	return &Actor{
 		Name:    name,
 		State:   state,
-		Backlog: make(chan Context, 64),
+		Backlog: make(chan Context, 128),
 		Exit:    make(chan interface{}),
 	}
 }

@@ -104,11 +104,10 @@ func (s *System) UnregisterActor(name string) {
 	if s == nil {
 		return
 	}
-	ref, err := s.ActorOf(name)
-	if err != nil {
+	ref := s.actors.Delete(name)
+	if ref == nil {
 		return
 	}
-	s.actors.Delete(name)
 	close(ref.Exit)
 }
 
@@ -124,16 +123,10 @@ func (s *System) SendMessage(msg string, to Coordinates, from Coordinates) {
 	}
 }
 
-// Stop terminates work
-func (s *System) Stop() {
+func (s *System) exhaustMailbox() {
 	if s == nil {
 		return
 	}
-	s.cancel()
-	<-s.ctx.Done()
-}
-
-func (s *System) exhaustMailbox() {
 	var message string
 	var start int
 	var end int
@@ -187,6 +180,15 @@ loop:
 	goto loop
 eos:
 	return
+}
+
+// Stop terminates work
+func (s *System) Stop() {
+	if s == nil {
+		return
+	}
+	s.cancel()
+	<-s.ctx.Done()
 }
 
 // Start spins PUSH and SUB workers
