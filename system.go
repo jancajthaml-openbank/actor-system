@@ -16,8 +16,8 @@ package actorsystem
 
 import (
 	"context"
-	"time"
 	"fmt"
+	"time"
 )
 
 // ProcessMessage is a function signature definition for remote message processing
@@ -179,6 +179,7 @@ loop:
 		)
 	}
 	goto loop
+
 eos:
 	return
 }
@@ -209,13 +210,13 @@ func (s *System) Start() {
 		}()
 		for {
 			select {
-				case <-time.After(time.Second):
-					s.push.Data <- s.Name + " !"
-				case <-s.sub.Data:
-					continue
-				case <-done:
-					s.push.Stop()
-					return
+			case <-time.After(100 * time.Millisecond):
+				s.push.Data <- s.Name + " !"
+			case <-s.sub.Data:
+				continue
+			case <-done:
+				s.push.Stop()
+				return
 			}
 		}
 	}()

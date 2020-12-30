@@ -10,7 +10,7 @@ services:
     image: docker.io/jancajthaml/go
     tty: true
     volumes:
-      - .:/project
+      - ..:/project
     working_dir: /project
     environment:
       - GOOS
@@ -23,7 +23,7 @@ services:
   sync:
     <<: *go
     entrypoint:
-      - /project/dev/lifecycle/sync
+      - /project/.dev/lifecycle/sync
 
   # -------------------------------------------------------------------------- #
 
@@ -37,20 +37,20 @@ services:
   lint:
     <<: *go
     entrypoint:
-      - /project/dev/lifecycle/lint
+      - /project/.dev/lifecycle/lint
 
   # -------------------------------------------------------------------------- #
 
   sec:
     <<: *go
     entrypoint:
-      - /project/dev/lifecycle/sec
+      - /project/.dev/lifecycle/sec
 
   # -------------------------------------------------------------------------- #
 
   test:
     <<: *go
     entrypoint:
-      - /project/dev/lifecycle/test
+      - /project/.dev/lifecycle/test
 
 # ---------------------------------------------------------------------------- #

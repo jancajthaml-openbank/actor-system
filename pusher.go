@@ -16,9 +16,9 @@ package actorsystem
 
 import (
 	"fmt"
-	"runtime"
-
 	"github.com/pebbe/zmq4"
+	"runtime"
+	"time"
 )
 
 // Pusher holds PUSH socket wrapper
@@ -47,8 +47,13 @@ func (s *Pusher) Stop() {
 		return
 	}
 	if s.deadConfirm != nil {
+		select {
+		case <-time.After(time.Second):
+			break
+		case <-s.deadConfirm:
+			break
+		}
 		close(s.killedOrder)
-		<-s.deadConfirm
 	}
 	if s.socket != nil {
 		s.socket.Close()
