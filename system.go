@@ -16,6 +16,7 @@ package actorsystem
 
 import (
 	"context"
+	"time"
 	"fmt"
 )
 
@@ -197,23 +198,31 @@ func (s *System) Start() {
 		return
 	}
 
-	go func() {
-		s.sub.Start()
-		s.cancel()
-	}()
-	defer s.sub.Stop()
-
-	go func() {
-		s.push.Start()
-		s.cancel()
-	}()
-	defer s.push.Stop()
+	go s.sub.Start()
+	go s.push.Start()
 
 	defer func() {
-		for actorName := range s.actors.underlying {
-			s.UnregisterActor(actorName)
+		done := make(chan interface{})
+		go func() {
+			s.sub.Stop()
+			close(done)
+		}()
+		for {
+			select {
+				case <-time.After(time.Second):
+					s.push.Data <- s.Name + " !"
+				case <-s.sub.Data:
+					continue
+				case <-done:
+					s.push.Stop()
+					return
+			}
 		}
 	}()
 
 	s.exhaustMailbox()
+
+	for actorName := range s.actors.underlying {
+		s.UnregisterActor(actorName)
+	}
 }

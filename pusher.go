@@ -52,6 +52,7 @@ func (s *Pusher) Stop() {
 	}
 	if s.socket != nil {
 		s.socket.Close()
+		s.socket.Disconnect(fmt.Sprintf("tcp://%s:%d", s.host, 5562))
 	}
 	s.socket = nil
 	s.ctx = nil

@@ -22,10 +22,10 @@ import (
 
 // Subber holds SUB socket wrapper
 type Subber struct {
-	host        string
-	topic       string
+	host   string
+	topic  string
+	Data   chan string
 	ctx         *zmq4.Context
-	Data        chan string
 	socket      *zmq4.Socket
 	killedOrder chan interface{}
 	deadConfirm chan interface{}
@@ -34,9 +34,9 @@ type Subber struct {
 // NewSubber returns new SUB worker connected to host
 func NewSubber(host string, topic string) Subber {
 	return Subber{
-		host:        host,
-		topic:       topic,
-		Data:        make(chan string),
+		host:  host,
+		topic: topic,
+		Data:  make(chan string, 2),
 		killedOrder: make(chan interface{}),
 		deadConfirm: nil,
 	}
@@ -53,8 +53,12 @@ func (s *Subber) Stop() {
 	}
 	if s.socket != nil {
 		s.socket.Close()
+		s.socket.Disconnect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
 	}
 	s.socket = nil
+	if s.ctx != nil {
+		s.ctx.Term()
+	}
 	s.ctx = nil
 }
 
@@ -93,9 +97,6 @@ func (s *Subber) Start() error {
 	s.socket.SetRcvhwm(0)
 	s.socket.SetLinger(0)
 
-	s.deadConfirm = make(chan interface{})
-	defer close(s.deadConfirm)
-
 	for {
 		err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
 		if err == nil {
@@ -110,9 +111,11 @@ func (s *Subber) Start() error {
 	}
 	defer s.socket.SetUnsubscribe(s.topic + " ")
 
+	s.deadConfirm = make(chan interface{})
+	defer close(s.deadConfirm)
+
 loop:
 	select {
-
 	case <-s.killedOrder:
 		goto eos
 	default:
@@ -121,8 +124,8 @@ loop:
 			goto eos
 		}
 		s.Data <- chunk
-		goto loop
 	}
+	goto loop
 
 eos:
 	return nil
