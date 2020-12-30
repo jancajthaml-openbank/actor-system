@@ -16,6 +16,7 @@ package actorsystem
 
 import (
 	"context"
+	"time"
 	"fmt"
 )
 
@@ -200,12 +201,27 @@ func (s *System) Start() {
 	go s.sub.Start()
 	go s.push.Start()
 
+	defer func() {
+		done := make(chan interface{})
+		go func() {
+			s.sub.Stop()
+			close(done)
+		}()
+		s.push.Data <- s.Name + " !"
+		for {
+			select {
+				case <-time.After(time.Second):
+					s.push.Data <- s.Name + " !"
+				case <-done:
+					s.push.Stop()
+					return
+			}
+		}
+	}()
+
 	s.exhaustMailbox()
 
 	for actorName := range s.actors.underlying {
 		s.UnregisterActor(actorName)
 	}
-
-	s.sub.Stop()
-	s.push.Stop()
 }
