@@ -207,11 +207,12 @@ func (s *System) Start() {
 			s.sub.Stop()
 			close(done)
 		}()
-		s.push.Data <- s.Name + " !"
 		for {
 			select {
 				case <-time.After(time.Second):
 					s.push.Data <- s.Name + " !"
+				case <-s.sub.Data:
+					continue
 				case <-done:
 					s.push.Stop()
 					return
