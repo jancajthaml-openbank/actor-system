@@ -47,13 +47,13 @@ func (s *Pusher) Stop() {
 		return
 	}
 	if s.deadConfirm != nil {
+		close(s.killedOrder)
 		select {
 		case <-time.After(time.Second):
 			break
 		case <-s.deadConfirm:
 			break
 		}
-		close(s.killedOrder)
 	}
 	if s.socket != nil {
 		s.socket.Close()
