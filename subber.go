@@ -49,13 +49,13 @@ func (s *Subber) Stop() {
 		return
 	}
 	if s.deadConfirm != nil {
-		close(s.killedOrder
+		close(s.killedOrder)
 		select {
 		case <-time.After(time.Second):
 			break
 		case <-s.deadConfirm:
 			break
-		})
+		}
 	}
 	if s.socket != nil {
 		s.socket.Close()
