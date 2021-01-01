@@ -126,7 +126,6 @@ loop:
 		if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket || zmq4.AsErrno(err) == zmq4.Errno(syscall.EINTR)) {
 			goto eos
 		}
-		fmt.Println(err)
 		s.Data <- chunk
 	}
 	goto loop
