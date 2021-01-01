@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"github.com/pebbe/zmq4"
 	"runtime"
+	"syscall"
 	"time"
 )
 
@@ -50,16 +51,11 @@ func (s *Subber) Stop() {
 	}
 	if s.deadConfirm != nil {
 		close(s.killedOrder)
-		select {
-		case <-time.After(time.Second):
-			break
-		case <-s.deadConfirm:
-			break
-		}
+		<-s.deadConfirm
 	}
 	if s.socket != nil {
-		s.socket.Close()
 		s.socket.Disconnect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
+		s.socket.Close()
 	}
 	s.socket = nil
 	if s.ctx != nil {
@@ -102,12 +98,13 @@ func (s *Subber) Start() error {
 	s.socket.SetImmediate(true)
 	s.socket.SetRcvhwm(0)
 	s.socket.SetLinger(0)
+	s.socket.SetRcvtimeo(time.Second)
 
 	for {
 		err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
 		if err == nil {
 			break
-		} else if err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket {
+		} else if err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket || zmq4.AsErrno(err) == zmq4.Errno(syscall.EINTR) {
 			return err
 		}
 	}
@@ -126,9 +123,10 @@ loop:
 		goto eos
 	default:
 		chunk, err = s.socket.Recv(0)
-		if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket) {
+		if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket || zmq4.AsErrno(err) == zmq4.Errno(syscall.EINTR)) {
 			goto eos
 		}
+		fmt.Println(err)
 		s.Data <- chunk
 	}
 	goto loop
