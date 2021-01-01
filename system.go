@@ -17,7 +17,6 @@ package actorsystem
 import (
 	"context"
 	"fmt"
-	"time"
 )
 
 // ProcessMessage is a function signature definition for remote message processing
@@ -208,10 +207,13 @@ func (s *System) Start() {
 			s.sub.Stop()
 			close(done)
 		}()
+
+		for actorName := range s.actors.underlying {
+			s.UnregisterActor(actorName)
+		}
+
 		for {
 			select {
-			case <-time.After(100 * time.Millisecond):
-				s.push.Data <- s.Name + " !"
 			case <-s.sub.Data:
 				continue
 			case <-done:
@@ -222,8 +224,4 @@ func (s *System) Start() {
 	}()
 
 	s.exhaustMailbox()
-
-	for actorName := range s.actors.underlying {
-		s.UnregisterActor(actorName)
-	}
 }
