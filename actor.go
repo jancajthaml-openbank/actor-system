@@ -83,7 +83,7 @@ func NewActor(name string, state interface{}) *Actor {
 	return &Actor{
 		Name:    name,
 		State:   state,
-		Backlog: make(chan Context, 128),
+		Backlog: make(chan Context, 1000),
 		Exit:    make(chan interface{}),
 	}
 }
