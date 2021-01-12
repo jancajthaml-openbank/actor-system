@@ -117,7 +117,7 @@ func (s *System) SendMessage(msg string, to Coordinates, from Coordinates) {
 		return
 	}
 	if to.Region == from.Region {
-		go s.onMessage(msg, to, from)
+		s.onMessage(msg, to, from)
 	} else {
 		s.push.Data <- (to.Region + " " + from.Region + " " + to.Name + " " + from.Name + " " + msg)
 	}
@@ -165,7 +165,7 @@ loop:
 			goto loop
 		}
 
-		go s.onMessage(
+		s.onMessage(
 			parts[4],
 			Coordinates{
 				Name:   parts[2],
@@ -177,6 +177,7 @@ loop:
 			},
 		)
 	}
+
 	goto loop
 
 eos:
