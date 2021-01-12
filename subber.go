@@ -38,7 +38,7 @@ func NewSubber(host string, topic string) Subber {
 	return Subber{
 		host:        host,
 		topic:       topic,
-		Data:        make(chan string),
+		Data:        make(chan string, 1000),
 		killedOrder: make(chan interface{}),
 		deadConfirm: nil,
 	}
