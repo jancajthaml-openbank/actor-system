@@ -38,7 +38,7 @@ func NewSubber(host string, topic string) Subber {
 	return Subber{
 		host:        host,
 		topic:       topic,
-		Data:        make(chan string, 2),
+		Data:        make(chan string),
 		killedOrder: make(chan interface{}),
 		deadConfirm: nil,
 	}
@@ -70,6 +70,7 @@ func (s *Subber) Start() error {
 		return fmt.Errorf("nil pointer")
 	}
 
+	var lastChunk string
 	var chunk string
 	var err error
 
@@ -126,7 +127,10 @@ loop:
 		if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket || zmq4.AsErrno(err) == zmq4.Errno(syscall.EINTR)) {
 			goto eos
 		}
-		s.Data <- chunk
+		if chunk != lastChunk {
+			s.Data <- chunk
+		}
+		lastChunk = chunk
 	}
 	goto loop
 
