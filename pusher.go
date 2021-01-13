@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2020, Jan Cajthaml <jan.cajthaml@gmail.com>
+// Copyright (c) 2016-2021, Jan Cajthaml <jan.cajthaml@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,8 +113,13 @@ func (s *Pusher) Start() error {
 loop:
 	select {
 	case chunk = <-s.Data:
-		_, err = s.socket.Send(chunk, 0)
+send:
+		_, err = s.socket.SendBytes(StringToBytes(chunk), 0)
 		if err != nil {
+			if err.Error() != "resource temporarily unavailable" {
+				time.Sleep(10*time.Millisecond)
+				goto send
+			}
 			goto eos
 		}
 	case <-s.killedOrder:
