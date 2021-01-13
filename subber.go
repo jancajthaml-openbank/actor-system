@@ -39,7 +39,7 @@ func NewSubber(host string, topic string) Subber {
 	return Subber{
 		host:        host,
 		topic:       topic,
-		Data:        make(chan string, 1000),
+		Data:        make(chan string, 10000),
 		killedOrder: make(chan interface{}),
 		deadConfirm: nil,
 	}
@@ -96,12 +96,13 @@ func (s *Subber) Start() error {
 		}
 	}
 
+	defer s.socket.SetLinger(0)
+
 	s.socket.SetConflate(false)
 	s.socket.SetImmediate(true)
 	s.socket.SetRcvhwm(0)
-	s.socket.SetLinger(0)
-	s.socket.SetRcvtimeo(time.Second)
-	s.socket.SetReconnectIvl(-1 * time.Millisecond)
+	s.socket.SetRcvtimeo(2 * time.Second)
+	s.socket.SetReconnectIvl(1 * time.Second)
 
 	for {
 		err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
@@ -126,10 +127,10 @@ loop:
 		goto eos
 	default:
 		chunk, err = s.socket.RecvBytes(0)
-		if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket || zmq4.AsErrno(err) == zmq4.Errno(syscall.EINTR)) {
+		if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket) {
 			goto eos
 		}
-		if err == nil && len(chunk) > 0 && bytes.Compare(chunk, lastChunk) != 0 {
+		if err == nil && len(chunk) > 0 {
 			select {
 			case s.Data <- BytesToString(chunk):
 			default:

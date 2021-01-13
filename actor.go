@@ -83,7 +83,7 @@ func NewActor(name string, state interface{}) *Actor {
 	return &Actor{
 		Name:    name,
 		State:   state,
-		Backlog: make(chan Context, 1000),
+		Backlog: make(chan Context, 1024),
 		Exit:    make(chan interface{}),
 	}
 }
@@ -93,15 +93,13 @@ func (ref *Actor) Tell(data interface{}, receiver Coordinates, sender Coordinate
 	if ref == nil {
 		return fmt.Errorf("actor reference %v not found", ref)
 	}
-	message := Context{
+	select {
+	case ref.Backlog <- Context{
 		Data:     data,
 		Self:     ref,
 		Receiver: receiver,
 		Sender:   sender,
-	}
-
-	select {
-	case ref.Backlog <- message:
+	}:
 		return nil
 	default:
 		return fmt.Errorf("actor %s backlog is full", ref.Name)

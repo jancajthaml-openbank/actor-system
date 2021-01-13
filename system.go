@@ -199,10 +199,12 @@ func (s *System) Start() {
 
 	go func() {
 		s.sub.Start()
+		s.sub.Stop()
 		s.Stop()
 	}()
 	go func() {
 		s.push.Start()
+		s.push.Stop()
 		s.Stop()
 	}()
 

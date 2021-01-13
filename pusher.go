@@ -93,10 +93,11 @@ func (s *Pusher) Start() error {
 		}
 	}
 
+	defer s.socket.SetLinger(0)
+
 	s.socket.SetConflate(false)
 	s.socket.SetImmediate(true)
 	s.socket.SetSndhwm(0)
-	s.socket.SetLinger(0)
 
 	s.deadConfirm = make(chan interface{})
 	defer close(s.deadConfirm)
@@ -117,7 +118,6 @@ loop:
 		_, err = s.socket.SendBytes(StringToBytes(chunk), 0)
 		if err != nil {
 			if err.Error() != "resource temporarily unavailable" {
-				time.Sleep(10 * time.Millisecond)
 				goto send
 			}
 			goto eos
