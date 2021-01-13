@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2020, Jan Cajthaml <jan.cajthaml@gmail.com>
+// Copyright (c) 2016-2021, Jan Cajthaml <jan.cajthaml@gmail.com>
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package actorsystem
 
 import (
 	"fmt"
+	"bytes"
 	"github.com/pebbe/zmq4"
 	"runtime"
 	"syscall"
@@ -70,8 +71,8 @@ func (s *Subber) Start() error {
 		return fmt.Errorf("nil pointer")
 	}
 
-	var lastChunk string
-	var chunk string
+	var lastChunk []byte
+	var chunk []byte
 	var err error
 
 	runtime.LockOSThread()
@@ -123,12 +124,12 @@ loop:
 	case <-s.killedOrder:
 		goto eos
 	default:
-		chunk, err = s.socket.Recv(0)
+		chunk, err = s.socket.RecvBytes(0)
 		if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket || zmq4.AsErrno(err) == zmq4.Errno(syscall.EINTR)) {
 			goto eos
 		}
-		if chunk != lastChunk {
-			s.Data <- chunk
+		if len(chunk) > 0 && bytes.Compare(chunk, lastChunk) != 0 {
+			s.Data <- BytesToString(chunk)
 		}
 		lastChunk = chunk
 	}
