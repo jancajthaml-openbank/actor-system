@@ -70,7 +70,6 @@ func (s *Subber) Start() error {
 		return fmt.Errorf("nil pointer")
 	}
 
-	var lastChunk []byte
 	var chunk []byte
 	var err error
 
@@ -137,7 +136,6 @@ loop:
 				s.Data <- BytesToString(chunk)
 			}
 		}
-		lastChunk = chunk
 	}
 	goto loop
 
