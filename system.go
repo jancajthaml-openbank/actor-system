@@ -175,7 +175,7 @@ loop:
 	case <-s.ctx.Done():
 		goto eos
 	case message = <-s.sub.Data:
-		go processMesage(message)
+		go s.processMesage(message)
 	}
 	goto loop
 eos:
