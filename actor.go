@@ -91,16 +91,21 @@ func NewActor(name string, state interface{}) *Actor {
 // Tell queues message to actor
 func (ref *Actor) Tell(data interface{}, receiver Coordinates, sender Coordinates) (err error) {
 	if ref == nil {
-		err = fmt.Errorf("actor reference %v not found", ref)
-		return
+		return fmt.Errorf("actor reference %v not found", ref)
 	}
-	ref.Backlog <- Context{
+	message := Context{
 		Data:     data,
 		Self:     ref,
 		Receiver: receiver,
 		Sender:   sender,
 	}
-	return
+
+	select {
+	case ref.Backlog <- message:
+		return nil
+	default:
+		return fmt.Errorf("actor %s backlog is full", ref.Name)
+	}
 }
 
 // Become transforms actor behavior for next message

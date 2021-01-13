@@ -15,8 +15,8 @@
 package actorsystem
 
 import (
-	"fmt"
 	"bytes"
+	"fmt"
 	"github.com/pebbe/zmq4"
 	"runtime"
 	"syscall"
@@ -101,6 +101,7 @@ func (s *Subber) Start() error {
 	s.socket.SetRcvhwm(0)
 	s.socket.SetLinger(0)
 	s.socket.SetRcvtimeo(time.Second)
+	s.socket.SetReconnectIvl(-1 * time.Millisecond)
 
 	for {
 		err = s.socket.Connect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
@@ -128,8 +129,13 @@ loop:
 		if err != nil && (err == zmq4.ErrorSocketClosed || err == zmq4.ErrorContextClosed || err == zmq4.ErrorNoSocket || zmq4.AsErrno(err) == zmq4.Errno(syscall.EINTR)) {
 			goto eos
 		}
-		if len(chunk) > 0 && bytes.Compare(chunk, lastChunk) != 0 {
-			s.Data <- BytesToString(chunk)
+		if err == nil && len(chunk) > 0 && bytes.Compare(chunk, lastChunk) != 0 {
+			select {
+			case s.Data <- BytesToString(chunk):
+			default:
+				<-s.Data
+				s.Data <- BytesToString(chunk)
+			}
 		}
 		lastChunk = chunk
 	}

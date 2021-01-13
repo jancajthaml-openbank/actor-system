@@ -165,7 +165,7 @@ loop:
 			goto loop
 		}
 
-		s.onMessage(
+		go s.onMessage(
 			parts[4],
 			Coordinates{
 				Name:   parts[2],
@@ -203,7 +203,7 @@ func (s *System) Start() {
 		s.sub.Start()
 		s.Stop()
 	}()
-	go func () {
+	go func() {
 		s.push.Start()
 		s.Stop()
 	}()

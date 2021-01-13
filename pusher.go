@@ -113,11 +113,11 @@ func (s *Pusher) Start() error {
 loop:
 	select {
 	case chunk = <-s.Data:
-send:
+	send:
 		_, err = s.socket.SendBytes(StringToBytes(chunk), 0)
 		if err != nil {
 			if err.Error() != "resource temporarily unavailable" {
-				time.Sleep(10*time.Millisecond)
+				time.Sleep(10 * time.Millisecond)
 				goto send
 			}
 			goto eos

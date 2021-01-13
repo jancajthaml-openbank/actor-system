@@ -15,27 +15,27 @@
 package actorsystem
 
 import (
-  "reflect"
-  "unsafe"
+	"reflect"
+	"unsafe"
 )
 
 // BytesToString casts []byte type to string, this does not copy the original
 // value so if original slice is changed string will also change
 func BytesToString(bytes []byte) string {
-  sliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&bytes))
-  return *(*string)(unsafe.Pointer(&reflect.StringHeader{
-    Data: sliceHeader.Data,
-    Len:  sliceHeader.Len,
-  }))
+	sliceHeader := (*reflect.SliceHeader)(unsafe.Pointer(&bytes))
+	return *(*string)(unsafe.Pointer(&reflect.StringHeader{
+		Data: sliceHeader.Data,
+		Len:  sliceHeader.Len,
+	}))
 }
 
 // StringToBytes casts string type to []byte, this does not copy the original
 // value so if original string is changed []byte will also change
 func StringToBytes(s string) []byte {
-  stringHeader := (*reflect.StringHeader)(unsafe.Pointer(&s))
-  return *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
-    Data: stringHeader.Data,
-    Len:  stringHeader.Len,
-    Cap:  stringHeader.Len,
-  }))
+	stringHeader := (*reflect.StringHeader)(unsafe.Pointer(&s))
+	return *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
+		Data: stringHeader.Data,
+		Len:  stringHeader.Len,
+		Cap:  stringHeader.Len,
+	}))
 }
