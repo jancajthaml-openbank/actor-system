@@ -15,7 +15,6 @@
 package actorsystem
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/pebbe/zmq4"
 	"runtime"
