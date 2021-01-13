@@ -123,63 +123,61 @@ func (s *System) SendMessage(msg string, to Coordinates, from Coordinates) {
 	}
 }
 
+func (s *System) processMesage(message string) {
+	start := 0
+	end := len(message)
+	if end == 0 {
+		return
+	}
+
+	parts := make([]string, 5)
+	idx := 0
+	i := 0
+
+	for i < end && idx < 4 {
+		if message[i] == 32 {
+			if !(start == i && message[start] == 32) {
+				parts[idx] = message[start:i]
+				idx++
+			}
+			start = i + 1
+		}
+		i++
+	}
+	if idx < 5 && message[start] != 32 && len(message[start:]) > 0 {
+		parts[idx] = message[start:]
+		idx++
+	}
+	if idx != 5 {
+		return
+	}
+
+	s.onMessage(
+		parts[4],
+		Coordinates{
+			Name:   parts[2],
+			Region: parts[0],
+		},
+		Coordinates{
+			Name:   parts[3],
+			Region: parts[1],
+		},
+	)
+}
+
 func (s *System) exhaustMailbox() {
 	if s == nil {
 		return
 	}
 	var message string
-	var start int
-	var end int
-	var parts = make([]string, 5)
-	var idx int
-	var i int
-
 loop:
 	select {
 	case <-s.ctx.Done():
 		goto eos
 	case message = <-s.sub.Data:
-		start = 0
-		end = len(message)
-		if end == 0 {
-			goto loop
-		}
-		idx = 0
-		i = 0
-
-		for i < end && idx < 4 {
-			if message[i] == 32 {
-				if !(start == i && message[start] == 32) {
-					parts[idx] = message[start:i]
-					idx++
-				}
-				start = i + 1
-			}
-			i++
-		}
-		if idx < 5 && message[start] != 32 && len(message[start:]) > 0 {
-			parts[idx] = message[start:]
-			idx++
-		}
-		if idx != 5 {
-			goto loop
-		}
-
-		s.onMessage(
-			parts[4],
-			Coordinates{
-				Name:   parts[2],
-				Region: parts[0],
-			},
-			Coordinates{
-				Name:   parts[3],
-				Region: parts[1],
-			},
-		)
+		go s.processMesage(message)
 	}
-
 	goto loop
-
 eos:
 	return
 }
@@ -203,7 +201,7 @@ func (s *System) Start() {
 		s.sub.Start()
 		s.Stop()
 	}()
-	go func () {
+	go func() {
 		s.push.Start()
 		s.Stop()
 	}()
