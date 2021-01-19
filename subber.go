@@ -39,7 +39,7 @@ func NewSubber(host string, topic string) Subber {
 		host:        host,
 		topic:       topic,
 		Data:        make(chan string, 10000),
-		killedOrder: make(chan interface{}),
+		killedOrder: make(chan interface{}, 2),
 		deadConfirm: nil,
 	}
 }
@@ -57,7 +57,6 @@ func (s *Subber) Stop() {
 		<-s.deadConfirm
 	}
 	if s.socket != nil {
-		s.socket.Disconnect(fmt.Sprintf("tcp://%s:%d", s.host, 5561))
 		s.socket.Close()
 	}
 	s.socket = nil
@@ -97,8 +96,7 @@ func (s *Subber) Start() error {
 		}
 	}
 
-	defer s.socket.SetLinger(0)
-
+	s.socket.SetLinger(0)
 	s.socket.SetConflate(false)
 	s.socket.SetImmediate(true)
 	s.socket.SetRcvhwm(0)
