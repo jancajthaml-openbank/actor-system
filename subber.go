@@ -50,7 +50,10 @@ func (s *Subber) Stop() {
 		return
 	}
 	if s.deadConfirm != nil {
-		close(s.killedOrder)
+		select {
+		case s.killedOrder <- nil:
+		default:
+		}
 		<-s.deadConfirm
 	}
 	if s.socket != nil {
