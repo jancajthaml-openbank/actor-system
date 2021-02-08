@@ -1,6 +1,9 @@
 # actor-system
 
 ![Health Check](https://github.com/jancajthaml-openbank/actor-system/workflows/Health%20Check/badge.svg)
+
+[![godoc for jancajthaml-openbank/actor-system](https://godoc.org/github.com/nathany/looper?status.svg)](https://godoc.org/github.com/jancajthaml-openbank/actor-system)
+
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fjancajthaml-openbank%2Factor-system.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fjancajthaml-openbank%2Factor-system?ref=badge_shield)
 
 No nonsense, easiblity extensible actor system support without need or service discovery and actor tracking.
