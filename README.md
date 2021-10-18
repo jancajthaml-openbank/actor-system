@@ -4,6 +4,8 @@
 
 [![godoc for jancajthaml-openbank/actor-system](https://godoc.org/github.com/nathany/looper?status.svg)](https://godoc.org/github.com/jancajthaml-openbank/actor-system)
 
+[![codebeat badge](https://codebeat.co/badges/89560b92-340d-4876-be9c-92dd06e001a8)](https://codebeat.co/projects/github-com-jancajthaml-openbank-actor-system-master)
+
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fjancajthaml-openbank%2Factor-system.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fjancajthaml-openbank%2Factor-system?ref=badge_shield)
 
 No nonsense, easiblity extensible actor system support without need or service discovery and actor tracking.
