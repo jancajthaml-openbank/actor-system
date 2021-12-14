@@ -31,7 +31,8 @@ type actorsMap struct {
 func (rm *actorsMap) Load(key string) (*Actor, bool) {
 	rm.RLock()
 	defer rm.RUnlock()
-	return rm.underlying[key]
+	result, ok := rm.underlying[key]
+	return result, ok
 }
 
 // Delete works same as delete from map
