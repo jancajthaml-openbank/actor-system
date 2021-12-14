@@ -19,17 +19,19 @@ import (
 	"sync"
 )
 
+// ReceiverFunction is function that processes Context and transitions state
+type ReceiverFunction func(data Context) ReceiverFunction
+
 type actorsMap struct {
 	sync.RWMutex
 	underlying map[string]*Actor
 }
 
 // Load works same as get from map
-func (rm *actorsMap) Load(key string) (value *Actor, ok bool) {
+func (rm *actorsMap) Load(key string) (*Actor, bool) {
 	rm.RLock()
 	defer rm.RUnlock()
-	result, ok := rm.underlying[key]
-	return result, ok
+	return rm.underlying[key]
 }
 
 // Delete works same as delete from map
@@ -57,7 +59,7 @@ type Coordinates struct {
 	Region string
 }
 
-func (ref *Coordinates) String() string {
+func (ref Coordinates) String() string {
 	return ref.Region + "/" + ref.Name
 }
 
@@ -72,17 +74,16 @@ type Context struct {
 // Actor represents single actor
 type Actor struct {
 	Name    string
-	State   interface{}
-	receive func(interface{}, Context)
+	receive ReceiverFunction
 	Backlog chan Context
 	Exit    chan interface{}
 }
 
 // NewActor returns new actor instance
-func NewActor(name string, state interface{}) *Actor {
+func NewActor(name string, receive ReceiverFunction) *Actor {
 	return &Actor{
 		Name:    name,
-		State:   state,
+		receive: receive,
 		Backlog: make(chan Context, 1024),
 		Exit:    make(chan interface{}),
 	}
@@ -106,16 +107,6 @@ func (ref *Actor) Tell(data interface{}, receiver Coordinates, sender Coordinate
 	}
 }
 
-// Become transforms actor behavior for next message
-func (ref *Actor) Become(state interface{}, f func(interface{}, Context)) {
-	if ref == nil {
-		return
-	}
-	ref.State = state
-	ref.React(f)
-	return
-}
-
 func (ref *Actor) String() string {
 	if ref == nil {
 		return "<Deadletter>"
@@ -123,19 +114,10 @@ func (ref *Actor) String() string {
 	return ref.Name
 }
 
-// React change become function
-func (ref *Actor) React(f func(interface{}, Context)) {
-	if ref == nil {
-		return
-	}
-	ref.receive = f
-	return
-}
-
 // Receive dequeues message to actor
 func (ref *Actor) Receive(msg Context) {
 	if ref.receive == nil {
 		return
 	}
-	ref.receive(ref.State, msg)
+	ref.receive = ref.receive(msg)
 }

@@ -56,23 +56,22 @@ func New(name string, lakeHostname string) (System, error) {
 }
 
 // RegisterOnMessage register callback on message receive
-func (s *System) RegisterOnMessage(cb ProcessMessage) {
+func (s *System) RegisterOnMessage(f ProcessMessage) {
 	if s == nil {
 		return
 	}
-	s.onMessage = cb
+	s.onMessage = f
 }
 
 // RegisterActor register new actor into actor system
-func (s *System) RegisterActor(ref *Actor, initialReaction func(interface{}, Context)) (err error) {
+func (s *System) RegisterActor(ref *Actor) error {
 	if s == nil || ref == nil {
-		return
+		return nil
 	}
 	_, exists := s.actors.Load(ref.Name)
 	if exists {
-		return
+		return fmt.Errorf("already exists")
 	}
-	ref.React(initialReaction)
 	s.actors.Store(ref.Name, ref)
 	go func() {
 		for {
@@ -84,7 +83,7 @@ func (s *System) RegisterActor(ref *Actor, initialReaction func(interface{}, Con
 			}
 		}
 	}()
-	return
+	return nil
 }
 
 // ActorOf return actor reference by name
@@ -202,6 +201,7 @@ func (s *System) Start() {
 		s.sub.Stop()
 		s.Stop()
 	}()
+
 	go func() {
 		s.push.Start()
 		s.push.Stop()
