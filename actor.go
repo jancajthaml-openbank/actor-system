@@ -19,17 +19,19 @@ import (
 	"sync"
 )
 
+// ReceiverFunction is function that processes Context and transitions state
+type ReceiverFunction func(data Context) ReceiverFunction
+
 type actorsMap struct {
 	sync.RWMutex
 	underlying map[string]*Actor
 }
 
 // Load works same as get from map
-func (rm *actorsMap) Load(key string) (value *Actor, ok bool) {
+func (rm *actorsMap) Load(key string) (*Actor, bool) {
 	rm.RLock()
 	defer rm.RUnlock()
-	result, ok := rm.underlying[key]
-	return result, ok
+	return rm.underlying[key]
 }
 
 // Delete works same as delete from map
@@ -72,13 +74,13 @@ type Context struct {
 // Actor represents single actor
 type Actor struct {
 	Name    string
-	receive func(Context)
+	receive ReceiverFunction
 	Backlog chan Context
 	Exit    chan interface{}
 }
 
 // NewActor returns new actor instance
-func NewActor(name string, receive func(, Context)) *Actor {
+func NewActor(name string, receive ReceiverFunction) *Actor {
 	return &Actor{
 		Name:    name,
 		receive: receive,
