@@ -55,7 +55,7 @@ func (s *Subber) Stop() {
 		default:
 		}
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(3*time.Second):
 			break
 		case <-s.deadConfirm:
 			break
