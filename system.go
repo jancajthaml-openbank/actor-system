@@ -221,12 +221,11 @@ func (s *System) Start() {
 				continue
 			case <-done:
 				s.push.Stop()
-				break
+				for actorName := range s.actors.underlying {
+					s.UnregisterActor(actorName)
+				}
+				return
 			}
-		}
-
-		for actorName := range s.actors.underlying {
-			s.UnregisterActor(actorName)
 		}
 	}()
 
