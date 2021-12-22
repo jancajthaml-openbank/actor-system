@@ -9,14 +9,18 @@ all: sync test lint sec
 
 .PHONY: version
 version:
-	@docker-compose \
+	@\
+		docker \
+		compose \
 		run \
 		--rm version \
 	|| :
 
 .PHONY: lint
 lint:
-	@docker-compose \
+	@\
+		docker \
+		compose \
 		run \
 		--rm lint \
 		--source /project \
@@ -24,7 +28,9 @@ lint:
 
 .PHONY: sec
 sec:
-	@docker-compose \
+	@\
+		docker \
+		compose \
 		run \
 		--rm sec \
 		--source /project \
@@ -32,14 +38,18 @@ sec:
 
 .PHONY: sync
 sync:
-	@docker-compose \
+	@\
+		docker \
+		compose \
 		run \
 		--rm sync \
 		--source /project
 
 .PHONY: test
 test:
-	@docker-compose \
+	@\
+		docker \
+		compose \
 		run \
 		--rm test \
 		--source /project \
