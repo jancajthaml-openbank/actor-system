@@ -215,18 +215,18 @@ func (s *System) Start() {
 			close(done)
 		}()
 
-		for actorName := range s.actors.underlying {
-			s.UnregisterActor(actorName)
-		}
-
 		for {
 			select {
 			case <-s.sub.Data:
 				continue
 			case <-done:
 				s.push.Stop()
-				return
+				break
 			}
+		}
+
+		for actorName := range s.actors.underlying {
+			s.UnregisterActor(actorName)
 		}
 	}()
 
