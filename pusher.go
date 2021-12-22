@@ -52,7 +52,7 @@ func (s *Pusher) Stop() {
 		default:
 		}
 		select {
-		case <-time.After(time.Second):
+		case <-time.After(3*time.Second):
 			break
 		case <-s.deadConfirm:
 			break
@@ -62,6 +62,9 @@ func (s *Pusher) Stop() {
 		s.socket.Close()
 	}
 	s.socket = nil
+	if s.ctx != nil {
+		s.ctx.Term()
+	}
 	s.ctx = nil
 }
 
