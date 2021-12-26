@@ -1,4 +1,4 @@
-name: "DevSkim"
+name: DevSkim
 
 on:
   push:
