@@ -33,16 +33,20 @@ jobs:
         cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DENABLE_CURVE=ON .. && make && sudo make install
 
     - name: Make sample project
+      env:
+        GO111MODULE: on
       run: |
-        GO111MODULE=on go mod verify
-        GO111MODULE=on go mod tidy
-        GO111MODULE=on go mod vendor
+        go mod verify
+        go mod tidy
+        go mod vendor
 
     - name: Install static dependencies
+      env:
+        GO111MODULE: on
       run: |
-        GO111MODULE=on go mod verify
-        GO111MODULE=on go mod tidy
-        GO111MODULE=on go mod vendor
+        go mod verify
+        go mod tidy
+        go mod vendor
 
     - name: Unit Test
       run:  |
